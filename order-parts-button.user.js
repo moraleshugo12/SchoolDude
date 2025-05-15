@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Order Parts Button
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Adds an "Order Parts" button to the footer that contains the "Clone Ticket" button and opens a modal for part selection.
 // @author       You
 // @match        *://*.schooldude.com/*

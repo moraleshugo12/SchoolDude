@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Discard Button to Footer with Automation Trigger
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Adds a "Discard" button to the footer that contains the "Clone Ticket" button and starts the automation process when clicked.
 // @author       You
 // @match        *://*.schooldude.com/*

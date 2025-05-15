@@ -5,6 +5,8 @@
 // @description  Adds the "Add Chromebooks" button and starts the submission process when clicked on SchoolDude pages.
 // @author       You
 // @match        *://*.schooldude.com/*
+// @updateURL    https://raw.githubusercontent.com/username/repository/main/order-parts-button.user.js
+// @downloadURL  https://raw.githubusercontent.com/username/repository/main/order-parts-button.user.js
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==

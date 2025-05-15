@@ -5,6 +5,8 @@
 // @description  Adds a "Discard" button to the footer that contains the "Clone Ticket" button and starts the automation process when clicked.
 // @author       You
 // @match        *://*.schooldude.com/*
+// @updateURL    https://github.com/moraleshugo12/SchoolDude/main/discard-button.user.js
+// @downloadURL  https://github.com/moraleshugo12/SchoolDude/main/discard-button.user.js
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==

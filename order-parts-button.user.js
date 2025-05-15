@@ -5,8 +5,8 @@
 // @description  Adds an "Order Parts" button to the footer that contains the "Clone Ticket" button and opens a modal for part selection.
 // @author       You
 // @match        *://*.schooldude.com/*
-// @updateURL    https://github.com/moraleshugo12/SchoolDude/main/order-parts-button.user.js
-// @downloadURL  https://github.com/moraleshugo12/SchoolDude/main/order-parts-button.user.js
+// @updateURL    https://raw.githubusercontent.com/moraleshugo12/SchoolDude/main/order-parts-button.user.js
+// @downloadURL  https://raw.githubusercontent.com/moraleshugo12/SchoolDude/main/order-parts-button.user.js
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==

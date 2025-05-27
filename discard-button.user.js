@@ -13,6 +13,12 @@
 
 (function () {
     'use strict';
+    // Function to reset variables
+    function resetVariables() {
+        console.log("Resetting all variables and cleaning up for the next discard process.");
+        // Clear or reset any temporary data
+        sessionStorage.clear(); // Optional: Clears any session storage used
+    }
 
     // Function to create the "Discard" button
     function createDiscardButton() {
@@ -391,6 +397,19 @@ function clickSaveButton() {
     }, 500); // Wait for 500ms before attempting to click
 }
 
+// Function to extract the site information
+    function getSiteInformation() {
+        const siteInput = document.querySelector('#base_inc_incident_rte_location');
+        if (siteInput) {
+            const siteValue = siteInput.value.trim();
+            console.log("Site Information:", siteValue);
+            return siteValue;
+        } else {
+            console.error("Site input field not found.");
+            return "Unknown Site";
+        }
+    }
+
 // Function to send data to the Google Apps Script Web App using window.open
 function sendToWebApp(reason) {
     // Extract description content
@@ -402,6 +421,8 @@ function sendToWebApp(reason) {
     // Get the signed-in user's email or username
     const signedInUser = getSignedInUser();
 
+    const site = getSiteInformation();
+
     // Get the current date in "MM/DD/YYYY" format
     const currentDate = new Date().toLocaleDateString();
 
@@ -410,7 +431,7 @@ function sendToWebApp(reason) {
 
     // Construct the URL with query parameters
     const equipmentType = "Chromebook"; // Static value for equipment type
-    const url = `https://script.google.com/macros/s/AKfycbxJZHGun1GINLoqgncyhVK2X6oZUV7a22h8KeTsfy6rf9hVGXrqJEuMwDoAboicM2Sv3A/exec?equipmentType=${encodeURIComponent(equipmentType)}&makeModel=${encodeURIComponent(modelNumber)}&whiteAssetTag=${encodeURIComponent(districtTag)}&serialNumber=${encodeURIComponent(serialNumber)}&reason=${encodeURIComponent(reason)}&comments=${encodeURIComponent(comments)}`;
+    const url = `https://script.google.com/macros/s/AKfycbxZR-auawZgnt5Kb2fTR8L2L0gRW7mrWgkPUBPzpqVLMdqqtEeJ1gcfhJ44hLCP7x4n9A/exec?equipmentType=${encodeURIComponent(equipmentType)}&makeModel=${encodeURIComponent(modelNumber)}&whiteAssetTag=${encodeURIComponent(districtTag)}&serialNumber=${encodeURIComponent(serialNumber)}&reason=${encodeURIComponent(reason)}&comments=${encodeURIComponent(comments)}&site=${encodeURIComponent(site)}`;
 
     // Open a new tab
     const newTab = window.open(url, '_blank');
@@ -423,6 +444,8 @@ function sendToWebApp(reason) {
         } else {
             console.error("Failed to open or close the new tab.");
         }
+        // Reset everything for the next discard action
+            resetVariables();
     }, 3000); // Close the tab after 3 seconds
 }
 
@@ -664,6 +687,8 @@ function showReasonPopup() {
 }
 // Main function to perform all actions in sequence
 function automateTicketInteraction() {
+    resetVariables();
+
         const descriptionContent = getDescriptionBoxContent(); // Step 1: Extract description
         if (descriptionContent) {
             const notesTabClicked = clickNotesTab(); // Step 2: Click the Notes tab
@@ -677,3 +702,4 @@ function automateTicketInteraction() {
     }
 
 })();
+

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Discard Button to Footer with Automation Trigger
 // @namespace    http://tampermonkey.net/
-// @version      1.1.2
+// @version      1.1.3
 // @description  Adds a "Discard" button to the footer that contains the "Clone Ticket" button and starts the automation process when clicked.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -431,7 +431,7 @@ function sendToWebApp(reason) {
 
     // Construct the URL with query parameters
     const equipmentType = "Chromebook"; // Static value for equipment type
-    const url = `https://script.google.com/macros/s/AKfycbxZR-auawZgnt5Kb2fTR8L2L0gRW7mrWgkPUBPzpqVLMdqqtEeJ1gcfhJ44hLCP7x4n9A/exec?equipmentType=${encodeURIComponent(equipmentType)}&makeModel=${encodeURIComponent(modelNumber)}&whiteAssetTag=${encodeURIComponent(districtTag)}&serialNumber=${encodeURIComponent(serialNumber)}&reason=${encodeURIComponent(reason)}&comments=${encodeURIComponent(comments)}&site=${encodeURIComponent(site)}`;
+    const url = `https://script.google.com/macros/s/AKfycbzhgNWhFJ7_dpriHwv5WpVvTIuFXSzMPusAMfHxmI1nEwa1wMTsxt8ZH57WLLZsw9QH/exec?equipmentType=${encodeURIComponent(equipmentType)}&makeModel=${encodeURIComponent(modelNumber)}&whiteAssetTag=${encodeURIComponent(districtTag)}&serialNumber=${encodeURIComponent(serialNumber)}&reason=${encodeURIComponent(reason)}&comments=${encodeURIComponent(comments)}&site=${encodeURIComponent(site)}`;
 
     // Open a new tab
     const newTab = window.open(url, '_blank');

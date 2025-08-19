@@ -1,18 +1,19 @@
 // ==UserScript==
 // @name         Add Chromebooks Button with Submission Process
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.5
 // @description  Adds the "Add Chromebooks" button and starts the submission process when clicked on SchoolDude pages.
 // @author       You
 // @match        *://*.schooldude.com/*
-// @updateURL    https://raw.githubusercontent.com/username/repository/main/order-parts-button.user.js
-// @downloadURL  https://raw.githubusercontent.com/username/repository/main/order-parts-button.user.js
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
 
 (function () {
     'use strict';
+
+    let addBtnScheduled = false;
+let addBtnInserted = false;
 
     // Function to create the "Add Chromebooks" button
     function createAddChromebooksButton() {
@@ -68,40 +69,63 @@
         return table;
     }
 
-    // Function to add the button to the specific footer containing "Personalizations"
     function addButtonToSpecificFooter() {
-        // Get all elements with the class "x-panel-footer"
-        const footers = document.querySelectorAll('.x-panel-footer');
+  if (addBtnInserted) return;
 
-        footers.forEach((footer) => {
-            // Check if the footer contains the "Personalizations" button
-            const personalizationsButton = footer.querySelector('button#Personalizations');
-            if (personalizationsButton) {
-                // Ensure the "Add Chromebooks" button is not already added
-                if (!footer.querySelector('#AddChromebooksButton')) {
-                    const toolbar = footer.querySelector('.x-toolbar-left-row');
-                    if (toolbar) {
-                        // Create the "Add Chromebooks" button
-                        const addChromebooksButton = createAddChromebooksButton();
+  const footers = document.querySelectorAll('.x-panel-footer');
+  for (const footer of footers) {
+    const personalizationsButton = footer.querySelector('button#Personalizations');
+    if (!personalizationsButton) continue;
 
-                        // Add the button to the toolbar
-                        const addChromebooksCell = document.createElement('td');
-                        addChromebooksCell.className = 'x-toolbar-cell';
-                        addChromebooksCell.appendChild(addChromebooksButton);
+    if (!footer.querySelector('#AddChromebooksButton')) {
+      const toolbar = footer.querySelector('.x-toolbar-left-row');
+      if (!toolbar) continue;
 
-                        toolbar.appendChild(addChromebooksCell);
+      const addChromebooksButton = createAddChromebooksButton();
 
-                        console.log('"Add Chromebooks" button added to the footer containing "Personalizations".');
-                    }
-                }
-            }
-        });
+      const addChromebooksCell = document.createElement('td');
+      addChromebooksCell.className = 'x-toolbar-cell';
+      addChromebooksCell.appendChild(addChromebooksButton);
+
+      toolbar.appendChild(addChromebooksCell);
+      console.log('"Add Chromebooks" button added to the footer containing "Personalizations".');
+
+      addBtnInserted = true;
+      // If we got here via observer, disconnect it
+      if (observer) observer.disconnect();
+      break;
+    } else {
+      addBtnInserted = true;
+      if (observer) observer.disconnect();
+      break;
     }
+  }
+}
 
-    // Observe changes to the DOM to ensure dynamic content is handled
-    const observer = new MutationObserver(() => {
-        addButtonToSpecificFooter(); // Add the button whenever the DOM changes
-    });
+// --- Throttled observer callback ---
+const observer = new MutationObserver(() => {
+  if (addBtnInserted) {
+    observer.disconnect();
+    return;
+  }
+  if (addBtnScheduled) return;
+  addBtnScheduled = true;
+  // Batch rapid DOM changes
+  setTimeout(() => {
+    addBtnScheduled = false;
+    addButtonToSpecificFooter();
+  }, 100);
+});
+
+// Start observing after DOM is ready
+window.addEventListener('load', () => {
+  addButtonToSpecificFooter(); // try once on load
+  if (!addBtnInserted) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+});
+
+  
 
     // Start observing the body for changes
     observer.observe(document.body, { childList: true, subtree: true });
@@ -187,19 +211,27 @@ function showModal(content, callback) {
 
     // Add keydown event listener for the Enter key
     modal.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') {
-        var input = modal.querySelector('input');
-        var select = modal.querySelector('select');
+  if (event.key !== 'Enter') return;
 
-        if (input) {
-          callback(input.value);
-          document.body.removeChild(modalBackground);
-        } else if (select) {
-          callback(select.value);
-          document.body.removeChild(modalBackground);
-        }
-      }
-    });
+  // Prefer the focused element if it's an input/select inside this modal
+  const active = document.activeElement;
+  let valueToSubmit = null;
+
+  if (active && modal.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) {
+    valueToSubmit = active.value;
+  } else {
+    // Fallback: pick the first input/select in this modal (backward compatible)
+    const firstInput = modal.querySelector('input');
+    const firstSelect = modal.querySelector('select');
+    if (firstInput) valueToSubmit = firstInput.value;
+    else if (firstSelect) valueToSubmit = firstSelect.value;
+  }
+
+  if (valueToSubmit !== null) {
+    callback(valueToSubmit);
+    document.body.removeChild(modalBackground);
+  }
+});
 
     // Existing input and button handling code
     var input = modal.querySelector('input');
@@ -239,28 +271,14 @@ function showModal(content, callback) {
   }
 
   function extractTechnicianName() {
-    // Get the element containing the logged-in user information
-    const userElement = document.querySelector('.xtb-text span');
+  const email = extractLoggedInUserEmail();
+  if (!email) return null;
 
-    if (userElement) {
-        // Extract the email from the text content
-        const emailText = userElement.textContent.trim();
-
-        // Extract the part of the string that contains the email by splitting at the space and taking the last part
-        const possibleEmail = emailText.split(' ').pop();
-
-        // Get the part before the "@" symbol
-        const namePart = possibleEmail.split('@')[0];
-
-        // Split the name part by the period and join it with a space
-        const fullName = namePart.split('.').join(' ');
-
-        console.log(`Full Name: ${fullName}`);
-        return fullName;
-    }
-
-    return null; // Return null if no user element is found
+  const user = email.split('@')[0];      // e.g., "john.doe"
+  const firstChunk = user.split('.')[0]; // strictly before first period -> "john"
+  return firstChunk;
 }
+
 
 
 
@@ -337,51 +355,82 @@ function showModal(content, callback) {
   }
 
   function promptSerialNumber(districtTag, errorMessage = '') {
-    var errorMessageHtml = errorMessage ? `<div id="errorMessage" class="error-message">${errorMessage}</div>` : '';
+  const errorMessageHtml = errorMessage ? `<div id="errorMessage" class="error-message">${errorMessage}</div>` : '';
 
-    showModal(`
-      <div class="modal-body">
-        ${errorMessageHtml}
-        <label for="serialNumber">Enter Serial # (leave blank to skip):</label>
-        <input type="text" id="serialNumber" class="modal-input">
-      </div>
-    `, function (serialNumber) {
-      // If the input is empty, set serialNumber to 'N/A'
-      if (serialNumber.trim() === '') {
-        serialNumber = 'N/A'; // Set to N/A if no input
-      } else if (serialNumber.length > 12) {
-        // Validate and process the serial number
-        var urlParts = serialNumber.split('/');
-        serialNumber = urlParts[urlParts.length - 1];
-      } else {
-        // Prompt again with error message if the serial number is incorrect
-        return promptSerialNumber(districtTag, 'Error: Serial number is incorrect');
-      }
+  showModal(`
+    <div class="modal-body">
+      ${errorMessageHtml}
+      <label for="serialNumber">Enter Serial # (leave blank to skip):</label>
+      <input type="text" id="serialNumber" class="modal-input">
+    </div>
+  `, function (serialInput) {
+    // 1) Blank => skip
+    if (serialInput.trim() === '') {
+      console.log('[Serial] blank -> N/A, moving to model prompt');
+      promptModelNumber(districtTag, 'N/A');
+      return;
+    }
 
-      // Continue to the next step
-      promptModelNumber(districtTag, serialNumber);
-    });
-  }
+    // 2) Clean serial safely (inline, no external dependency)
+    let cleaned = String(serialInput).trim();
+
+    // try URL path last segment if it’s a real URL
+    try {
+      const u = new URL(cleaned);
+      cleaned = u.pathname.split('/').filter(Boolean).pop() || cleaned;
+    } catch (_) {
+      // not a full URL; fall back to last slash segment if any
+      const parts = cleaned.split('/');
+      cleaned = parts[parts.length - 1];
+    }
+
+    // strip ?query and #hash, non-alphanumerics, uppercase
+    cleaned = cleaned.split('?')[0].split('#')[0];
+    cleaned = cleaned.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+    console.log('[Serial] cleaned:', cleaned, 'length:', cleaned.length);
+
+    // 3) Validate length (allow Lenovo 8+, Acer long, etc.)
+    if (cleaned.length >= 8) {
+      console.log('[Serial] accepted -> next prompt');
+      promptModelNumber(districtTag, cleaned);
+    } else {
+      console.warn('[Serial] too short after cleaning -> re-prompt');
+      promptSerialNumber(districtTag, 'Error: Serial number is incorrect');
+    }
+  });
+}
 
 
-  // Function to determine model number based on serial number
-  function determineModelNumber(serialNumber) {
-    const modelMapping = {
-      'NXHPW': 'R752T',
-      'NXGPZ': 'R751T',
-      'NXA8Z': 'R753T',
-      'NXH8V': 'C733',
-      'NXH8Y': 'C851',
-      'M2NXY': 'C204M',
-      'M1NXV': 'C204M',
-      'M2NXC': 'C204M'
-    };
 
-    // Get the first 4 letters of the serial number
-    const prefix = serialNumber.substring(0, 5);
+function determineModelNumber(serialNumber) {
+  if (!serialNumber) return '';
+  const prefix4 = serialNumber.substring(0, 4).toUpperCase();
+  const prefix5 = serialNumber.substring(0, 5).toUpperCase();
 
-    return modelMapping[prefix] || ''; // Return the corresponding model or an empty string
-  }
+  // 5-char mappings
+  const map5 = {
+    'NXHPW': 'R752T',
+    'NXGPZ': 'R751T',
+    'NXA8Z': 'R753T',
+    'NXH8V': 'C733',
+    'NXH8Y': 'C851',
+    'M2NXY': 'C204M',
+    'M1NXV': 'C204M',
+    'M2NXC': 'C204M'
+  };
+
+  // 4-char mappings
+  const map4 = {
+    'YX0B': 'Lenovo 300e Yoga'
+  };
+
+  return map5[prefix5] || map4[prefix4] || '';
+}
+
+
+
+  
 
   // Function to prompt for model number with auto-selection
   function promptModelNumber(districtTag, serialNumber) {
@@ -392,13 +441,7 @@ function showModal(content, callback) {
       // If a model number is auto-selected, add it directly to the chromebooks array
       chromebooks.push({ districtTag, serialNumber, modelNumber: autoSelectedModel });
       chromebookCount++;
-      // Only show the "Done" button in the district tag prompt after the first Chromebook
-      if (chromebookCount === 1) {
-        var doneButton = document.getElementById('doneButton');
-        if (doneButton) {
-          doneButton.style.display = 'inline';
-        }
-      }
+      
       promptDistrictTag();
     } else {
       // Otherwise, prompt the user to manually enter the model number
@@ -415,12 +458,7 @@ function showModal(content, callback) {
           chromebooks.push({ districtTag, serialNumber, modelNumber: modelNumber.trim() });
           chromebookCount++;
           // Only show the "Done" button in the district tag prompt after the first Chromebook
-          if (chromebookCount === 1) {
-            var doneButton = document.getElementById('doneButton');
-            if (doneButton) {
-              doneButton.style.display = 'inline';
-            }
-          }
+          
           promptDistrictTag();
         }
       });
@@ -707,25 +745,20 @@ function openNewTicketPage() {
     }
   }
 
-  // Function to extract the logged-in user's email
-function extractLoggedInUserEmail() {
-    // Locate the element containing the user's email
-    const userElement = document.querySelector('.xtb-text span'); // Adjust the selector based on your DOM structure
-    if (userElement) {
-      const emailText = userElement.textContent.trim(); // Get the full text
-      const emailMatch = emailText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/); // Regex to extract email
-      if (emailMatch) {
-        const email = emailMatch[0]; // Extracted email
-        console.log('Logged-in user email:', email);
-        return email;
-      } else {
-        console.error('No email found in the text:', emailText);
-      }
-    } else {
-      console.error('Logged-in user email element not found.');
-    }
+  function extractLoggedInUserEmail() {
+  const el = document.querySelector('.xtb-text span'); // adjust selector if your UI changes
+  if (!el) {
+    console.error('Logged-in user element not found.');
     return null;
   }
+  const text = el.textContent.trim();
+  const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (!match) {
+    console.error('No email found in logged-in user text:', text);
+    return null;
+  }
+  return match[0];
+}
 
   function fillOutFormFields(chromebookData, loggedInUserEmail, selectedSchool, callback) {
     if (!chromebookData || !loggedInUserEmail || !selectedSchool) {
@@ -900,57 +933,7 @@ function selectLocationBySchool(selectedSchool) {
       }
     }, 500); // Adjust delay to match your dropdown rendering time
   }
-   // Function to find and select the location in the dropdown based on the first word of the school name
-function selectWorkQueueBySchool(selectedSchool) {
-    // Step 1: Extract the first word from the selectedSchool name
-    const firstWord = selectedSchool.split(' ')[0];
-
-    // Step 2: Locate the "Location" dropdown menu trigger
-    const locationDropdownTrigger = document.getElementsByClassName('x-form-trigger-arrow')[3]; // Adjust to the correct index
-    if (!locationDropdownTrigger) {
-      console.error('"Location" dropdown trigger not found.');
-      return;
-    }
-
-    // Step 3: Open the dropdown menu
-    locationDropdownTrigger.click();
-
-    // Step 4: Wait for the dropdown options to render and match the first word
-    setTimeout(() => {
-      const dropdownContainer = document.getElementById('base_inc_incident_rte_location-combo-list'); // Adjust ID if necessary
-      if (!dropdownContainer) {
-        console.error('Dropdown list container not found for "Location".');
-        return;
-      }
-
-      // Get all dropdown options
-      const dropdownOptions = Array.from(dropdownContainer.querySelectorAll('.x-combo-list-item span[qtip]'));
-
-      if (dropdownOptions.length === 0) {
-        console.error('No options found in the "Location" dropdown menu.');
-        return;
-      }
-
-      // Step 5: Find the matching option based on the first word
-      const matchingOption = dropdownOptions.find(option =>
-        option.getAttribute('qtip').trim().toLowerCase().startsWith(firstWord.toLowerCase())
-      );
-
-      if (matchingOption) {
-        // Step 6: Select the matching option
-        const parentOption = matchingOption.closest('.x-combo-list-item');
-
-        // Simulate events to ensure proper selection
-        parentOption.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        parentOption.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        parentOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
-        console.log(`Selected location: ${matchingOption.getAttribute('qtip')}`);
-      } else {
-        console.warn(`No matching location option found for the school: ${selectedSchool}`);
-      }
-    }, 500); // Adjust delay to match your dropdown rendering time
-  }
+   
 
   // Function to find and select the work queue in the dropdown based on the first word of the school name
 function selectWorkQueueBySchool(selectedSchool) {
@@ -1104,15 +1087,14 @@ function triggerTextareaInput(textareaElement, value) {
     }
   }
 
-  window.onload = function() {
-    const storedIndex = localStorage.getItem('currentIndex');
-    if (storedIndex) {
-      const index = parseInt(storedIndex, 10);
-      localStorage.removeItem('currentIndex'); // Clear the stored index
-      submitChromebooks(index, selectedTechnician, selectedSchool); // Resume submission
-    }
-  };
-
+  window.addEventListener('load', function () {
+  const storedIndex = localStorage.getItem('currentIndex');
+  if (storedIndex) {
+    const index = parseInt(storedIndex, 10);
+    localStorage.removeItem('currentIndex'); // Clear the stored index
+    submitChromebooks(index, selectedSchool); // function signature is (index, selectedSchool)
+  }
+});
 
   function displaySummary() {
     const summaryContent = `

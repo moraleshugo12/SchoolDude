@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Chromebooks Button with Submission Process
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.5.1
 // @description  Adds the "Add Chromebooks" button and starts the submission process when clicked on SchoolDude pages.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -10,33 +10,33 @@
 // ==/UserScript==
 
 (function () {
-    'use strict';
+  'use strict';
 
-    let addBtnScheduled = false;
-let addBtnInserted = false;
+  let addBtnScheduled = false;
+  let addBtnInserted = false;
 
-    // Function to create the "Add Chromebooks" button
-    function createAddChromebooksButton() {
-        const table = document.createElement('table');
-        table.setAttribute('cellspacing', '0');
-        table.setAttribute('role', 'presentation');
-        table.id = 'AddChromebooksButton';
-        table.className = 'x-btn x-component x-btn-noicon x-unselectable';
-        table.style.cssText = 'margin-right: 5px; margin-left: 10px;'; // Added margin-left for spacing
-        table.unselectable = 'on';
+  // Function to create the "Add Chromebooks" button
+  function createAddChromebooksButton() {
+    const table = document.createElement('table');
+    table.setAttribute('cellspacing', '0');
+    table.setAttribute('role', 'presentation');
+    table.id = 'AddChromebooksButton';
+    table.className = 'x-btn x-component x-btn-noicon x-unselectable';
+    table.style.cssText = 'margin-right: 5px; margin-left: 10px;'; // Added margin-left for spacing
+    table.unselectable = 'on';
 
-        const tbody = document.createElement('tbody');
-        tbody.className = 'x-btn-small x-btn-icon-small-left';
+    const tbody = document.createElement('tbody');
+    tbody.className = 'x-btn-small x-btn-icon-small-left';
 
-        const topRow = document.createElement('tr');
-        topRow.innerHTML = `
+    const topRow = document.createElement('tr');
+    topRow.innerHTML = `
             <td class="x-btn-tl"><i>&nbsp;</i></td>
             <td class="x-btn-tc"></td>
             <td class="x-btn-tr"><i>&nbsp;</i></td>
         `;
 
-        const middleRow = document.createElement('tr');
-        middleRow.innerHTML = `
+    const middleRow = document.createElement('tr');
+    middleRow.innerHTML = `
             <td class="x-btn-ml"><i>&nbsp;</i></td>
             <td class="x-btn-mc">
                 <em class="" unselectable="on">
@@ -48,105 +48,105 @@ let addBtnInserted = false;
             <td class="x-btn-mr"><i>&nbsp;</i></td>
         `;
 
-        const bottomRow = document.createElement('tr');
-        bottomRow.innerHTML = `
+    const bottomRow = document.createElement('tr');
+    bottomRow.innerHTML = `
             <td class="x-btn-bl"><i>&nbsp;</i></td>
             <td class="x-btn-bc"></td>
             <td class="x-btn-br"><i>&nbsp;</i></td>
         `;
 
-        tbody.appendChild(topRow);
-        tbody.appendChild(middleRow);
-        tbody.appendChild(bottomRow);
-        table.appendChild(tbody);
+    tbody.appendChild(topRow);
+    tbody.appendChild(middleRow);
+    tbody.appendChild(bottomRow);
+    table.appendChild(tbody);
 
-        // Add a click event listener for the button
-        table.addEventListener('click', () => {
-            console.log('"Add Chromebooks" button clicked!');
-            injectChromebookSubmissionLogic(); // Trigger the Chromebook submission process
-        });
+    // Add a click event listener for the button
+    table.addEventListener('click', () => {
+      console.log('"Add Chromebooks" button clicked!');
+      injectChromebookSubmissionLogic(); // Trigger the Chromebook submission process
+    });
 
-        return table;
-    }
+    return table;
+  }
 
-    function addButtonToSpecificFooter() {
-  if (addBtnInserted) return;
+  function addButtonToSpecificFooter() {
+    if (addBtnInserted) return;
 
-  const footers = document.querySelectorAll('.x-panel-footer');
-  for (const footer of footers) {
-    const personalizationsButton = footer.querySelector('button#Personalizations');
-    if (!personalizationsButton) continue;
+    const footers = document.querySelectorAll('.x-panel-footer');
+    for (const footer of footers) {
+      const personalizationsButton = footer.querySelector('button#Personalizations');
+      if (!personalizationsButton) continue;
 
-    if (!footer.querySelector('#AddChromebooksButton')) {
-      const toolbar = footer.querySelector('.x-toolbar-left-row');
-      if (!toolbar) continue;
+      if (!footer.querySelector('#AddChromebooksButton')) {
+        const toolbar = footer.querySelector('.x-toolbar-left-row');
+        if (!toolbar) continue;
 
-      const addChromebooksButton = createAddChromebooksButton();
+        const addChromebooksButton = createAddChromebooksButton();
 
-      const addChromebooksCell = document.createElement('td');
-      addChromebooksCell.className = 'x-toolbar-cell';
-      addChromebooksCell.appendChild(addChromebooksButton);
+        const addChromebooksCell = document.createElement('td');
+        addChromebooksCell.className = 'x-toolbar-cell';
+        addChromebooksCell.appendChild(addChromebooksButton);
 
-      toolbar.appendChild(addChromebooksCell);
-      console.log('"Add Chromebooks" button added to the footer containing "Personalizations".');
+        toolbar.appendChild(addChromebooksCell);
+        console.log('"Add Chromebooks" button added to the footer containing "Personalizations".');
 
-      addBtnInserted = true;
-      // If we got here via observer, disconnect it
-      if (observer) observer.disconnect();
-      break;
-    } else {
-      addBtnInserted = true;
-      if (observer) observer.disconnect();
-      break;
+        addBtnInserted = true;
+        // If we got here via observer, disconnect it
+        if (observer) observer.disconnect();
+        break;
+      } else {
+        addBtnInserted = true;
+        if (observer) observer.disconnect();
+        break;
+      }
     }
   }
-}
 
-// --- Throttled observer callback ---
-const observer = new MutationObserver(() => {
-  if (addBtnInserted) {
-    observer.disconnect();
-    return;
-  }
-  if (addBtnScheduled) return;
-  addBtnScheduled = true;
-  // Batch rapid DOM changes
-  setTimeout(() => {
-    addBtnScheduled = false;
-    addButtonToSpecificFooter();
-  }, 100);
-});
-
-// Start observing after DOM is ready
-window.addEventListener('load', () => {
-  addButtonToSpecificFooter(); // try once on load
-  if (!addBtnInserted) {
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-});
-
-  
-
-    // Start observing the body for changes
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Initial attempt to add the button after the page is fully loaded
-    window.addEventListener('load', addButtonToSpecificFooter);
-
-    // Chromebook submission logic function
-    function injectChromebookSubmissionLogic() {
-        console.log('Starting the Chromebook submission process...');
-        startProcess(); // Call your provided startProcess function
+  // --- Throttled observer callback ---
+  const observer = new MutationObserver(() => {
+    if (addBtnInserted) {
+      observer.disconnect();
+      return;
     }
+    if (addBtnScheduled) return;
+    addBtnScheduled = true;
+    // Batch rapid DOM changes
+    setTimeout(() => {
+      addBtnScheduled = false;
+      addButtonToSpecificFooter();
+    }, 100);
+  });
 
-    // Your Chromebook submission logic and styles are assumed to be already defined
+  // Start observing after DOM is ready
+  window.addEventListener('load', () => {
+    addButtonToSpecificFooter(); // try once on load
+    if (!addBtnInserted) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  });
+
+
+
+  // Start observing the body for changes
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Initial attempt to add the button after the page is fully loaded
+  window.addEventListener('load', addButtonToSpecificFooter);
+
+  // Chromebook submission logic function
+  function injectChromebookSubmissionLogic() {
+    console.log('Starting the Chromebook submission process...');
+    startProcess(); // Call your provided startProcess function
+  }
+
+  // Your Chromebook submission logic and styles are assumed to be already defined
 
 
 
 
-var submissionInProgress = false; // Flag to prevent multiple submissions
+  var submissionInProgress = false; // Flag to prevent multiple submissions
 
-var schools = [
+  var schools = [
     'Dinuba High School',
     'Grand view Elementary',
     'Kennedy Elementary',
@@ -159,125 +159,115 @@ var schools = [
   ];
 
   // Variables to store user input
-var selectedSchool = '';
-var selectedTechnician = '';
-var chromebooks = [];
-var chromebookCount = 0;
+  var selectedSchool = '';
+  var selectedTechnician = '';
+  var chromebooks = [];
+  var chromebookCount = 0;
 
-function showModal(content, callback) {
-    // Create modal background
-    var modalBackground = document.createElement('div');
-    modalBackground.className = 'modal-background';
-    modalBackground.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    `;
+  function showModal(content, callback) {
+  // Create modal background
+  var modalBackground = document.createElement('div');
+  modalBackground.className = 'modal-background';
+  modalBackground.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1000;
+  `;
 
-    // Create modal
-    var modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.cssText = `
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      max-width: 500px;
-      width: 90%;
-      text-align: center;
-    `;
-    modal.innerHTML = `
-      <div class="modal-content">
-        ${content}
-      </div>
-    `;
+  // Create modal
+  var modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.cssText = `
+    background: white; padding: 20px; border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    max-width: 500px; width: 90%; text-align: center;
+  `;
+  modal.innerHTML = `<div class="modal-content">${content}</div>`;
 
-    modalBackground.appendChild(modal);
-    document.body.appendChild(modalBackground);
+  // ⛔ Prevent clicks inside the modal from reaching the background
+  modal.addEventListener('click', function (e) { e.stopPropagation(); });
+  modal.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  modal.addEventListener('mouseup', function (e) { e.stopPropagation(); });
 
-    // Close modal on background click
-    modalBackground.addEventListener('click', function (event) {
-      if (event.target === modalBackground) {
-        document.body.removeChild(modalBackground);
-      }
+  modalBackground.appendChild(modal);
+  document.body.appendChild(modalBackground);
+
+  // ✅ Reload ONLY when clicking outside the modal
+  modalBackground.addEventListener('click', function (event) {
+    if (event.target === modalBackground) {
+      document.body.removeChild(modalBackground);
+      location.reload();
+    }
+  });
+
+  // Enter key submits current input/select (no reload)
+  modal.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter') return;
+    const active = document.activeElement;
+    let valueToSubmit = null;
+    if (active && modal.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) {
+      valueToSubmit = active.value;
+    } else {
+      const firstInput = modal.querySelector('input');
+      const firstSelect = modal.querySelector('select');
+      if (firstInput) valueToSubmit = firstInput.value;
+      else if (firstSelect) valueToSubmit = firstSelect.value;
+    }
+    if (valueToSubmit !== null) {
+      callback(valueToSubmit);
+      if (modalBackground.parentNode) modalBackground.parentNode.removeChild(modalBackground);
+    }
+  });
+
+  // Focus the first input if present
+  var input = modal.querySelector('input');
+  var select = modal.querySelector('select');
+  if (input) input.focus();
+
+  // Next button — no reload
+  var nextButton = modal.querySelector('#nextButton');
+  if (nextButton) {
+    nextButton.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (input) callback(input.value);
+      else if (select) callback(select.value);
+      if (modalBackground.parentNode) modalBackground.parentNode.removeChild(modalBackground);
     });
-
-    // Add keydown event listener for the Enter key
-    modal.addEventListener('keydown', function (event) {
-  if (event.key !== 'Enter') return;
-
-  // Prefer the focused element if it's an input/select inside this modal
-  const active = document.activeElement;
-  let valueToSubmit = null;
-
-  if (active && modal.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) {
-    valueToSubmit = active.value;
-  } else {
-    // Fallback: pick the first input/select in this modal (backward compatible)
-    const firstInput = modal.querySelector('input');
-    const firstSelect = modal.querySelector('select');
-    if (firstInput) valueToSubmit = firstInput.value;
-    else if (firstSelect) valueToSubmit = firstSelect.value;
   }
 
-  if (valueToSubmit !== null) {
-    callback(valueToSubmit);
-    document.body.removeChild(modalBackground);
+  // Done button — no reload
+  var doneButton = modal.querySelector('#doneButton');
+  if (doneButton) {
+    doneButton.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const mb = document.querySelector('.modal-background');
+      if (mb && mb.parentNode) mb.parentNode.removeChild(mb);
+      displayCollectedInfo();
+    });
   }
-});
 
-    // Existing input and button handling code
-    var input = modal.querySelector('input');
-    var select = modal.querySelector('select');
-    if (input) {
-      input.focus();
-    }
+  // Close (✖) button — no reload
+  // Close (✖) button — now also refreshes
+var closeButton = modal.querySelector('#closeButton');
+if (closeButton) {
+  closeButton.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (modalBackground.parentNode) modalBackground.parentNode.removeChild(modalBackground);
+    location.reload(); // 🔄 Refresh when user closes with the X
+  });
+}
+}
 
-    var nextButton = modal.querySelector('#nextButton');
-    if (nextButton) {
-      nextButton.addEventListener('click', function () {
-        if (input) {
-          callback(input.value);
-        } else if (select) {
-          callback(select.value);
-        }
-        document.body.removeChild(modalBackground);
-      });
-    }
-    var doneButton = modal.querySelector('#doneButton');
-    if (doneButton) {
-      doneButton.addEventListener('click', function () {
-        var modalBackground = document.querySelector('.modal-background');
-        if (modalBackground) {
-          modalBackground.parentNode.removeChild(modalBackground); // Safely remove the modal background
-        }
-        displayCollectedInfo();
-      });
-    }
-
-    var closeButton = modal.querySelector('#closeButton');
-    if (closeButton) {
-      closeButton.addEventListener('click', function () {
-        document.body.removeChild(modalBackground); // Close the modal
-      });
-    }
-  }
 
   function extractTechnicianName() {
-  const email = extractLoggedInUserEmail();
-  if (!email) return null;
+    const email = extractLoggedInUserEmail();
+    if (!email) return null;
 
-  const user = email.split('@')[0];      // e.g., "john.doe"
-  const firstChunk = user.split('.')[0]; // strictly before first period -> "john"
-  return firstChunk;
-}
+    const user = email.split('@')[0];      // e.g., "john.doe"
+    const firstChunk = user.split('.')[0]; // strictly before first period -> "john"
+    return firstChunk;
+  }
 
 
 
@@ -364,73 +354,74 @@ function showModal(content, callback) {
       <input type="text" id="serialNumber" class="modal-input">
     </div>
   `, function (serialInput) {
-    // 1) Blank => skip
-    if (serialInput.trim() === '') {
-      console.log('[Serial] blank -> N/A, moving to model prompt');
-      promptModelNumber(districtTag, 'N/A');
-      return;
-    }
+      // 1) Blank => skip
+      if (serialInput.trim() === '') {
+        console.log('[Serial] blank -> N/A, moving to model prompt');
+        promptModelNumber(districtTag, 'N/A');
+        return;
+      }
 
-    // 2) Clean serial safely (inline, no external dependency)
-    let cleaned = String(serialInput).trim();
+      // 2) Clean serial safely (inline, no external dependency)
+      let cleaned = String(serialInput).trim();
 
-    // try URL path last segment if it’s a real URL
-    try {
-      const u = new URL(cleaned);
-      cleaned = u.pathname.split('/').filter(Boolean).pop() || cleaned;
-    } catch (_) {
-      // not a full URL; fall back to last slash segment if any
-      const parts = cleaned.split('/');
-      cleaned = parts[parts.length - 1];
-    }
+      // try URL path last segment if it’s a real URL
+      try {
+        const u = new URL(cleaned);
+        cleaned = u.pathname.split('/').filter(Boolean).pop() || cleaned;
+      } catch (_) {
+        // not a full URL; fall back to last slash segment if any
+        const parts = cleaned.split('/');
+        cleaned = parts[parts.length - 1];
+      }
 
-    // strip ?query and #hash, non-alphanumerics, uppercase
-    cleaned = cleaned.split('?')[0].split('#')[0];
-    cleaned = cleaned.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      // strip ?query and #hash, non-alphanumerics, uppercase
+      cleaned = cleaned.split('?')[0].split('#')[0];
+      cleaned = cleaned.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 
-    console.log('[Serial] cleaned:', cleaned, 'length:', cleaned.length);
+      console.log('[Serial] cleaned:', cleaned);
 
-    // 3) Validate length (allow Lenovo 8+, Acer long, etc.)
-    if (cleaned.length >= 8) {
-      console.log('[Serial] accepted -> next prompt');
-      promptModelNumber(districtTag, cleaned);
-    } else {
-      console.warn('[Serial] too short after cleaning -> re-prompt');
-      promptSerialNumber(districtTag, 'Error: Serial number is incorrect');
-    }
-  });
+      // 3) Validate prefix rule (must start with N, M, or Y)
+      if (/^[NMY]/.test(cleaned)) {
+        console.log('[Serial] accepted -> next prompt');
+        promptModelNumber(districtTag, cleaned);
+      } else {
+        console.warn('[Serial] invalid prefix -> re-prompt');
+        promptSerialNumber(districtTag, 'Error: Serial number must start with N, M, or Y');
+      }
+    });
 }
 
 
 
-function determineModelNumber(serialNumber) {
-  if (!serialNumber) return '';
-  const prefix4 = serialNumber.substring(0, 4).toUpperCase();
-  const prefix5 = serialNumber.substring(0, 5).toUpperCase();
 
-  // 5-char mappings
-  const map5 = {
-    'NXHPW': 'R752T',
-    'NXGPZ': 'R751T',
-    'NXA8Z': 'R753T',
-    'NXH8V': 'C733',
-    'NXH8Y': 'C851',
-    'M2NXY': 'C204M',
-    'M1NXV': 'C204M',
-    'M2NXC': 'C204M'
-  };
+  function determineModelNumber(serialNumber) {
+    if (!serialNumber) return '';
+    const prefix4 = serialNumber.substring(0, 4).toUpperCase();
+    const prefix5 = serialNumber.substring(0, 5).toUpperCase();
 
-  // 4-char mappings
-  const map4 = {
-    'YX0B': 'Lenovo 300e Yoga'
-  };
+    // 5-char mappings
+    const map5 = {
+      'NXHPW': 'R752T',
+      'NXGPZ': 'R751T',
+      'NXA8Z': 'R753T',
+      'NXH8V': 'C733',
+      'NXH8Y': 'C851',
+      'M2NXY': 'C204M',
+      'M1NXV': 'C204M',
+      'M2NXC': 'C204M'
+    };
 
-  return map5[prefix5] || map4[prefix4] || '';
-}
+    // 4-char mappings
+    const map4 = {
+      'YX0B': 'Lenovo 300e Yoga'
+    };
+
+    return map5[prefix5] || map4[prefix4] || '';
+  }
 
 
 
-  
+
 
   // Function to prompt for model number with auto-selection
   function promptModelNumber(districtTag, serialNumber) {
@@ -441,7 +432,7 @@ function determineModelNumber(serialNumber) {
       // If a model number is auto-selected, add it directly to the chromebooks array
       chromebooks.push({ districtTag, serialNumber, modelNumber: autoSelectedModel });
       chromebookCount++;
-      
+
       promptDistrictTag();
     } else {
       // Otherwise, prompt the user to manually enter the model number
@@ -458,7 +449,7 @@ function determineModelNumber(serialNumber) {
           chromebooks.push({ districtTag, serialNumber, modelNumber: modelNumber.trim() });
           chromebookCount++;
           // Only show the "Done" button in the district tag prompt after the first Chromebook
-          
+
           promptDistrictTag();
         }
       });
@@ -618,7 +609,7 @@ function determineModelNumber(serialNumber) {
         serialNumber: updatedSerialNumber,
         modelNumber: updatedModelNumber
       };
-       // Close the edit modal
+      // Close the edit modal
       var modalBackground = document.querySelector('.modal-background');
       if (modalBackground) {
         // Safely remove the modal and the background
@@ -669,8 +660,8 @@ function determineModelNumber(serialNumber) {
     }
   }
 
-// Function to open the new ticket page and trigger additional actions
-function openNewTicketPage() {
+  // Function to open the new ticket page and trigger additional actions
+  function openNewTicketPage() {
     var button = document.querySelector('button#New');
     if (button) {
       button.click();
@@ -746,19 +737,19 @@ function openNewTicketPage() {
   }
 
   function extractLoggedInUserEmail() {
-  const el = document.querySelector('.xtb-text span'); // adjust selector if your UI changes
-  if (!el) {
-    console.error('Logged-in user element not found.');
-    return null;
+    const el = document.querySelector('.xtb-text span'); // adjust selector if your UI changes
+    if (!el) {
+      console.error('Logged-in user element not found.');
+      return null;
+    }
+    const text = el.textContent.trim();
+    const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (!match) {
+      console.error('No email found in logged-in user text:', text);
+      return null;
+    }
+    return match[0];
   }
-  const text = el.textContent.trim();
-  const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-  if (!match) {
-    console.error('No email found in logged-in user text:', text);
-    return null;
-  }
-  return match[0];
-}
 
   function fillOutFormFields(chromebookData, loggedInUserEmail, selectedSchool, callback) {
     if (!chromebookData || !loggedInUserEmail || !selectedSchool) {
@@ -830,7 +821,7 @@ function openNewTicketPage() {
 
 
   // Function to find and select the logged-in user in the dropdown
-function selectAssignedToUser() {
+  function selectAssignedToUser() {
     // Step 1: Extract the logged-in user's email
     const loggedInUserEmail = extractLoggedInUserEmail();
     if (!loggedInUserEmail) return;
@@ -883,7 +874,7 @@ function selectAssignedToUser() {
   }
 
   // Function to find and select the location in the dropdown based on the first word of the school name
-function selectLocationBySchool(selectedSchool) {
+  function selectLocationBySchool(selectedSchool) {
     // Step 1: Extract the first word from the selectedSchool name
     const firstWord = selectedSchool.split(' ')[0];
 
@@ -933,10 +924,10 @@ function selectLocationBySchool(selectedSchool) {
       }
     }, 500); // Adjust delay to match your dropdown rendering time
   }
-   
+
 
   // Function to find and select the work queue in the dropdown based on the first word of the school name
-function selectWorkQueueBySchool(selectedSchool) {
+  function selectWorkQueueBySchool(selectedSchool) {
     // Step 1: Extract the first word from the selectedSchool name
     const firstWord = selectedSchool.split(' ')[0];
 
@@ -988,7 +979,7 @@ function selectWorkQueueBySchool(selectedSchool) {
   }
 
   // Function to always select "Chromebook" as the work type in the dropdown
-function selectWorkTypeAsChromebook() {
+  function selectWorkTypeAsChromebook() {
     // Step 1: Locate the "Work Type" dropdown menu trigger
     const workTypeDropdownTrigger = document.getElementsByClassName('x-form-trigger-arrow')[4]; // Adjust index if necessary
     if (!workTypeDropdownTrigger) {
@@ -1038,7 +1029,7 @@ function selectWorkTypeAsChromebook() {
 
 
   // Function to trigger textarea input
-function triggerTextareaInput(textareaElement, value) {
+  function triggerTextareaInput(textareaElement, value) {
     var clickEvent = new MouseEvent('click', {
       bubbles: true,
       clientX: textareaElement.offsetWidth - 2,
@@ -1088,13 +1079,13 @@ function triggerTextareaInput(textareaElement, value) {
   }
 
   window.addEventListener('load', function () {
-  const storedIndex = localStorage.getItem('currentIndex');
-  if (storedIndex) {
-    const index = parseInt(storedIndex, 10);
-    localStorage.removeItem('currentIndex'); // Clear the stored index
-    submitChromebooks(index, selectedSchool); // function signature is (index, selectedSchool)
-  }
-});
+    const storedIndex = localStorage.getItem('currentIndex');
+    if (storedIndex) {
+      const index = parseInt(storedIndex, 10);
+      localStorage.removeItem('currentIndex'); // Clear the stored index
+      submitChromebooks(index, selectedSchool); // function signature is (index, selectedSchool)
+    }
+  });
 
   function displaySummary() {
     const summaryContent = `

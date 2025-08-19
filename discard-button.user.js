@@ -1,705 +1,596 @@
 // ==UserScript==
 // @name         Add Discard Button to Footer with Automation Trigger
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
+// @version      1.4.1
 // @description  Adds a "Discard" button to the footer that contains the "Clone Ticket" button and starts the automation process when clicked.
 // @author       You
 // @match        *://*.schooldude.com/*
-// @updateURL    https://raw.githubusercontent.com/moraleshugo12/SchoolDude/main/discard-button.user.js
-// @downloadURL  hhttps://raw.githubusercontent.com/moraleshugo12/SchoolDude/main/discard-button.user.js
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
 
 (function () {
-    'use strict';
-    // Function to reset variables
-    function resetVariables() {
-        console.log("Resetting all variables and cleaning up for the next discard process.");
-        // Clear or reset any temporary data
-        sessionStorage.clear(); // Optional: Clears any session storage used
-    }
+  'use strict';
 
-    // Function to create the "Discard" button
-    function createDiscardButton() {
-        const table = document.createElement('table');
-        table.setAttribute('cellspacing', '0');
-        table.setAttribute('role', 'presentation');
-        table.id = 'DiscardButton'; // Unique ID for the Discard button
-        table.className = 'x-btn x-component x-btn-noicon x-unselectable';
-        table.style.cssText = 'margin-right: 5px;';
-        table.unselectable = 'on';
+  /* =========================
+   *  STYLE INJECTION (CSS)
+   * ========================= */
+  function injectStyles() {
+    var style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = `
+      /* ===== Modal Background ===== */
+      .modal-background {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2147483647; /* ensure on top of everything */
+        backdrop-filter: blur(6px);
+      }
 
-        const tbody = document.createElement('tbody');
-        tbody.className = 'x-btn-small x-btn-icon-small-left';
+      /* ===== Modal ===== */
+      .modal {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 520px;
+        width: 92%;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+        position: relative;
+        animation: fadeIn 0.25s ease;
+        font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      }
 
-        const topRow = document.createElement('tr');
-        topRow.innerHTML = `
-            <td class="x-btn-tl"><i>&nbsp;</i></td>
-            <td class="x-btn-tc"></td>
-            <td class="x-btn-tr"><i>&nbsp;</i></td>
-        `;
+      .modal-body {
+        position: relative;
+      }
 
-        const middleRow = document.createElement('tr');
-        middleRow.innerHTML = `
-            <td class="x-btn-ml"><i>&nbsp;</i></td>
-            <td class="x-btn-mc">
-                <em class="" unselectable="on">
-                    <button class="x-btn-text" type="button" style="position: relative; width: 150px;" tabindex="0">
-                        Discard
-                    </button>
-                </em>
-            </td>
-            <td class="x-btn-mr"><i>&nbsp;</i></td>
-        `;
+      /* ===== Titles ===== */
+      .modal-body h2, .modal-body h3 {
+        margin: 0 0 16px 0;
+        color: #222;
+      }
+      .modal-body h2 {
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .modal-body h3 {
+        font-size: 18px;
+        font-weight: 500;
+        color: #444;
+      }
 
-        const bottomRow = document.createElement('tr');
-        bottomRow.innerHTML = `
-            <td class="x-btn-bl"><i>&nbsp;</i></td>
-            <td class="x-btn-bc"></td>
-            <td class="x-btn-br"><i>&nbsp;</i></td>
-        `;
+      /* ===== Labels ===== */
+      .modal-body label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 15px;
+        font-weight: 500;
+        color: #333;
+      }
 
-        tbody.appendChild(topRow);
-        tbody.appendChild(middleRow);
-        tbody.appendChild(bottomRow);
-        table.appendChild(tbody);
+      /* ===== Inputs & Selects ===== */
+      .modal-input, .modal-select, .modal-body input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 15px;
+        transition: border-color 0.25s ease;
+      }
+      .modal-input:focus, .modal-select:focus, .modal-body input[type="text"]:focus {
+        outline: none;
+        border-color: #007bff;
+      }
 
-        // Add a click event listener for the button
-        table.addEventListener('click', () => {
-            console.log('Discard button clicked!');
-            automateTicketInteraction(); // Trigger the automation process
-        });
+      /* ===== Radios ===== */
+      .modal-body input[type="radio"] {
+        accent-color: #007bff;
+      }
 
-        return table;
-    }
+      /* ===== Buttons ===== */
+      .modal-button {
+        padding: 10px 18px;
+        margin: 6px 4px 0 0;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.2s ease, opacity 0.2s ease;
+      }
+      .modal-button.primary {
+        background: #007bff;
+        color: #fff;
+      }
+      .modal-button.primary:hover { background: #0056b3; }
+      .modal-button.secondary {
+        background: #6c757d;
+        color: #fff;
+      }
+      .modal-button.secondary:hover { background: #545b62; }
 
-    // Function to add the "Discard" button to the footer containing the "Clone Ticket" button
-    function addDiscardButtonToFooter() {
-        // Get all elements with the class "x-panel-footer"
-        const footers = document.querySelectorAll('.x-panel-footer');
+      /* ===== Close Button (optional) ===== */
+      .modal .close-x {
+        position: absolute;
+        top: 10px; right: 12px;
+        width: 32px; height: 32px;
+        background: transparent;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 32px;
+        text-align: center;
+        color: #666;
+      }
+      .modal .close-x:hover { background: rgba(0,0,0,0.06); }
 
-        footers.forEach((footer) => {
-            // Check if the footer contains the "Clone Ticket" button
-            const cloneTicketButton = footer.querySelector('button#Clone_Ticket');
-            if (cloneTicketButton) {
-                // Ensure the "Discard" button is not already added
-                if (!footer.querySelector('#DiscardButton')) {
-                    const toolbar = footer.querySelector('.x-toolbar-left-row');
-                    if (toolbar) {
-                        // Create the "Discard" button
-                        const discardButton = createDiscardButton();
+      /* ===== Item List ===== */
+      .chromebook-item {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #f9f9f9;
+        padding: 12px;
+        margin-bottom: 10px;
+        position: relative;
+        transition: background-color 0.2s ease;
+      }
+      .chromebook-item:hover { background: #f1f1f1; }
 
+      .button-group {
+        position: absolute;
+        top: 10px; right: 10px;
+        display: flex;
+        gap: 8px;
+      }
 
+      .edit-button, .delete-button {
+        border: none;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 13px;
+        color: #fff;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+      .edit-button { background: #ffc107; }
+      .edit-button:hover { background: #e0a800; }
+      .delete-button { background: #dc3545; }
+      .delete-button:hover { background: #c82333; }
 
-                        // Add the button to the toolbar with padding on the left
-                        const discardButtonCell = document.createElement('td');
-                        discardButtonCell.className = 'x-toolbar-cell';
-                        discardButtonCell.style.paddingLeft = '10px'; // Add left padding here
-                        discardButtonCell.appendChild(discardButton);
+      /* ===== Errors ===== */
+      .error-message {
+        color: #dc3545;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
 
-                        toolbar.appendChild(discardButtonCell);
+      /* ===== Animations ===== */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.98); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  injectStyles();
 
-                        console.log('"Discard" button added to the footer containing "Clone Ticket" with left padding.');
-                    }
-                }
-            }
-        });
-    }
+  /* =========================
+   *  UI: BUTTON IN FOOTER
+   * ========================= */
+  function createDiscardButton() {
+    const table = document.createElement('table');
+    table.setAttribute('cellspacing', '0');
+    table.setAttribute('role', 'presentation');
+    table.id = 'DiscardButton';
+    table.className = 'x-btn x-component x-btn-noicon x-unselectable';
+    table.style.cssText = 'margin-right: 5px;';
+    table.unselectable = 'on';
 
-    // Observe changes to the DOM to ensure dynamic content is handled
-    const observer = new MutationObserver(() => {
-        addDiscardButtonToFooter(); // Add the button whenever the DOM changes
+    const tbody = document.createElement('tbody');
+    tbody.className = 'x-btn-small x-btn-icon-small-left';
+
+    const topRow = document.createElement('tr');
+    topRow.innerHTML = `
+      <td class="x-btn-tl"><i>&nbsp;</i></td>
+      <td class="x-btn-tc"></td>
+      <td class="x-btn-tr"><i>&nbsp;</i></td>
+    `;
+
+    const middleRow = document.createElement('tr');
+    middleRow.innerHTML = `
+      <td class="x-btn-ml"><i>&nbsp;</i></td>
+      <td class="x-btn-mc">
+        <em class="" unselectable="on">
+          <button class="x-btn-text" type="button" style="position: relative; width: 150px;" tabindex="0">
+            Discard
+          </button>
+        </em>
+      </td>
+      <td class="x-btn-mr"><i>&nbsp;</i></td>
+    `;
+
+    const bottomRow = document.createElement('tr');
+    bottomRow.innerHTML = `
+      <td class="x-btn-bl"><i>&nbsp;</i></td>
+      <td class="x-btn-bc"></td>
+      <td class="x-btn-br"><i>&nbsp;</i></td>
+    `;
+
+    tbody.appendChild(topRow);
+    tbody.appendChild(middleRow);
+    tbody.appendChild(bottomRow);
+    table.appendChild(tbody);
+
+    table.addEventListener('click', () => {
+      console.log('Discard button clicked!');
+      automateTicketInteraction();
     });
 
-    // Start observing the body for changes
-    observer.observe(document.body, { childList: true, subtree: true });
+    return table;
+  }
 
-    // Initial attempt to add the button after the page is fully loaded
-    window.addEventListener('load', addDiscardButtonToFooter);
+  function addDiscardButtonToFooter() {
+    const footers = document.querySelectorAll('.x-panel-footer');
+    footers.forEach((footer) => {
+      const cloneTicketButton = footer.querySelector('button#Clone_Ticket');
+      if (cloneTicketButton) {
+        if (!footer.querySelector('#DiscardButton')) {
+          const toolbar = footer.querySelector('.x-toolbar-left-row');
+          if (toolbar) {
+            const discardButton = createDiscardButton();
+            const cell = document.createElement('td');
+            cell.className = 'x-toolbar-cell';
+            cell.style.paddingLeft = '10px';
+            cell.appendChild(discardButton);
+            toolbar.appendChild(cell);
+            console.log('"Discard" button added near "Clone Ticket".');
+          }
+        }
+      }
+    });
+  }
 
-    // Include the full automation process logic here
-    // Function to set value in a text area and simulate all necessary events
-function setValueAndSimulateEvents(element, value) {
-    if (element) {
-        element.value = value; // Set the value
-        element.dispatchEvent(new Event('focus', { bubbles: true })); // Simulate focus
-        element.dispatchEvent(new Event('input', { bubbles: true })); // Simulate input
-        element.dispatchEvent(new Event('keyup', { bubbles: true })); // Simulate keyup
-        element.dispatchEvent(new Event('change', { bubbles: true })); // Simulate change
-        element.dispatchEvent(new Event('blur', { bubbles: true })); // Simulate blur
-        console.log(`Value set and events triggered for element:`, element);
-    } else {
-        console.error("Element not found to set value.");
+  const observer = new MutationObserver(addDiscardButtonToFooter);
+  observer.observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('load', addDiscardButtonToFooter);
+
+  /* =========================
+   *  HELPERS
+   * ========================= */
+  function setValueAndSimulateEvents(element, value) {
+    if (!element) return;
+    element.value = value;
+    element.dispatchEvent(new Event('focus', { bubbles: true }));
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('keyup', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new Event('blur', { bubbles: true }));
+  }
+
+  function simulateCheckboxClick(checkbox) {
+    if (!checkbox) return;
+    if (checkbox.disabled) return;
+    checkbox.dispatchEvent(new MouseEvent('focus', { bubbles: true }));
+    checkbox.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    checkbox.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    if (!checkbox.checked) {
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
-}
+  }
 
-
-// Function to simulate a mouse click on a checkbox and ensure it is checked
-function simulateCheckboxClick(checkbox) {
-    if (checkbox) {
-        // Ensure the checkbox is visible and interactable
-        if (checkbox.disabled) {
-            console.error("Checkbox is disabled and cannot be clicked:", checkbox);
-            return;
-        }
-
-        // Simulate a mouse click sequence
-        checkbox.dispatchEvent(new MouseEvent('focus', { bubbles: true })); // Focus on the checkbox
-        checkbox.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); // Simulate mousedown
-        checkbox.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));   // Simulate mouseup
-        checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true }));   // Simulate click
-
-        // Fallback: Ensure checkbox state is toggled if events don't work
-        if (!checkbox.checked) {
-            checkbox.checked = true; // Manually check the checkbox
-            checkbox.dispatchEvent(new Event('change', { bubbles: true })); // Trigger change event
-            console.log("Checkbox manually checked as fallback:", checkbox);
-        }
-
-        console.log(`Checkbox clicked and events triggered for:`, checkbox);
-    } else {
-        console.error("Checkbox not found to simulate click.");
-    }
-}
-
-// Function to wait for a checkbox to become enabled
-function waitForCheckboxToEnable(checkbox, callback) {
-    const interval = setInterval(() => {
-        if (!checkbox.disabled) {
-            clearInterval(interval); // Stop checking once the checkbox is enabled
-            console.log(`Checkbox is now enabled:`, checkbox);
-            callback(); // Execute the callback
-        }
-    }, 100); // Check every 100 milliseconds
-}
-
-// Function to extract information from the description box
-function getDescriptionBoxContent() {
+  function getDescriptionBoxContent() {
     const descriptionBox = document.getElementById('base_inc_incident_description');
-    if (descriptionBox) {
-        const descriptionContent = descriptionBox.value || descriptionBox.textContent;
-        console.log("Description Box Content:", descriptionContent);
-        return descriptionContent.trim();
-    } else {
-        console.error("Description box not found.");
-        return null;
-    }
-}
+    if (!descriptionBox) return null;
+    const descriptionContent = descriptionBox.value || descriptionBox.textContent;
+    return (descriptionContent || '').trim();
+  }
 
-// Function to parse information (District Tag, Serial Number, Model Number) from the description box
-function parseDescriptionContent(descriptionContent) {
-    if (!descriptionContent) {
-        console.error("No description content provided for parsing.");
-        return {};
-    }
-
-    // Regular expressions to extract District Tag, Serial Number, and Model Number
+  function parseDescriptionContent(descriptionContent) {
+    if (!descriptionContent) return {};
     const districtTagMatch = descriptionContent.match(/District Tag:\s*([\w-]+)/i);
     const serialNumberMatch = descriptionContent.match(/Serial #:\s*([\w-]+)/i);
     const modelNumberMatch = descriptionContent.match(/Model Number:\s*([\w-]+)/i);
-
-    // Extracted values or default to 'Unknown'
     const districtTag = districtTagMatch ? districtTagMatch[1].trim() : "Unknown";
     const serialNumber = serialNumberMatch ? serialNumberMatch[1].trim() : "Unknown";
     const modelNumber = modelNumberMatch ? modelNumberMatch[1].trim() : "Unknown";
-
-    console.log("Parsed District Tag:", districtTag);
-    console.log("Parsed Serial Number:", serialNumber);
-    console.log("Parsed Model Number:", modelNumber);
-
     return { districtTag, serialNumber, modelNumber };
-}
+  }
 
-// Function to get the signed-in user from the toolbar and return only the first name
-function getSignedInUser() {
+  function getSignedInUser() {
     const toolbarElement = document.querySelector('.x-toolbar-right .xtb-text span');
-    if (toolbarElement) {
-        const textContent = toolbarElement.textContent.trim();
-        const userMatch = textContent.match(/Welcome\s+([\w.-]+@[\w.-]+)/i); // Extract email from text
-        if (userMatch && userMatch[1]) {
-            const fullEmail = userMatch[1]; // Full email, e.g., "john.doe@example.com"
-            const firstName = fullEmail.split(/[@.]/)[0]; // Split by "@" or "." and take the first part
-            console.log("Signed-in User First Name:", firstName);
-            return firstName; // Return only the first name
-        }
-    }
-    console.error("Could not find the signed-in user.");
-    return "Unknown User";
-}
+    if (!toolbarElement) return "Unknown User";
+    const textContent = toolbarElement.textContent.trim();
+    const userMatch = textContent.match(/Welcome\s+([\w.-]+@[\w.-]+)/i);
+    if (!userMatch || !userMatch[1]) return "Unknown User";
+    return userMatch[1].split(/[@.]/)[0]; // first part as "name"
+  }
 
-// Function to check if all three checkboxes are filled
-function areAllCheckboxesChecked() {
-    const publicCheckbox = document.querySelector('#note_public');
-    const resolutionCheckbox = document.querySelector('#note_resolution');
-    const completeCheckbox = document.querySelector('#note_completed');
-
-    // Verify all checkboxes are checked
-    return (
-        publicCheckbox && publicCheckbox.checked &&
-        resolutionCheckbox && resolutionCheckbox.checked &&
-        completeCheckbox && completeCheckbox.checked
-    );
-}
-
-// Function to trigger the "Save" button only when all conditions are met
-function clickSaveButtonWhenReady() {
-    const interval = setInterval(() => {
-        if (areAllCheckboxesChecked()) {
-            clearInterval(interval); // Stop checking once all checkboxes are checked
-
-            // Locate the "Save" button
-            const saveButton = document.querySelector('button#Save');
-
-            if (saveButton) {
-                // Check if the button is enabled
-                const isDisabled = saveButton.getAttribute('aria-disabled') === 'true';
-                if (!isDisabled) {
-                    saveButton.click(); // Trigger the click
-                    console.log("Save button clicked successfully.");
-                } else {
-                    console.error("Save button is disabled and cannot be clicked.");
-                }
-            } else {
-                console.error("Save button not found in the DOM.");
-            }
-        } else {
-            console.log("Waiting for all checkboxes to be checked...");
-        }
-    }, 500); // Check every 500ms
-}
-
-// Function to simulate a click on the correct "Save" button
-function simulateSaveButtonClick() {
+  function simulateSaveButtonClick() {
     setTimeout(() => {
-        // Locate the parent container for the correct Save button
-        const parentContainer = document.querySelector('#_p-Notes'); // Adjust this selector if needed
+      const parentContainer = document.querySelector('#_p-Notes');
+      if (!parentContainer) return;
+      const saveButton = parentContainer.querySelector('button#Save');
+      if (!saveButton) return;
+      const isDisabled = saveButton.getAttribute('aria-disabled') === 'true';
+      if (isDisabled) return;
+      saveButton.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      saveButton.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      saveButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }, 500);
+  }
 
-        if (parentContainer) {
-            // Find the Save button within this container
-            const saveButton = parentContainer.querySelector('button#Save');
+  /* =========================
+   *  MODALS
+   * ========================= */
+  function showModal(contentHtml, onConfirm) {
+    const old = document.querySelector('.modal-background');
+    if (old) old.remove();
 
-            if (saveButton) {
-                // Check if the button is disabled
-                const isDisabled = saveButton.getAttribute('aria-disabled') === 'true';
+    const bg = document.createElement('div');
+    bg.className = 'modal-background';
 
-                if (!isDisabled) {
-                    // Simulate a click event on the Save button
-                    saveButton.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                    saveButton.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-                    saveButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const modal = document.createElement('div');
+    modal.className = 'modal';
 
-                    console.log("Simulated a click on the Save button.");
-                } else {
-                    console.error("Save button is disabled and cannot be clicked.");
-                }
-            } else {
-                console.error("Save button not found within the specified container.");
-            }
-        } else {
-            console.error("Parent container for the Save button not found.");
-        }
-    }, 500); // Wait for DOM elements to be fully rendered
-}
-function autofillForm(reason) {
-    const today = new Date().toLocaleDateString();
+    // optional close X
+    const closeX = document.createElement('button');
+    closeX.className = 'close-x';
+    closeX.setAttribute('aria-label', 'Close');
+    closeX.innerHTML = '&times;';
+    closeX.onclick = () => { bg.remove(); };
+    modal.appendChild(closeX);
 
-    // Format the note content
-    const noteContent = `DISCARDED: ${today}\nADDED TO INFORMATION TECHNOLOGY DISCARD LIST\nREASON: ${reason}`;
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'modal-body';
+    bodyWrap.innerHTML = contentHtml;
 
-    // Fill the "Note:" textarea and simulate events
-    const noteTextarea = document.querySelector('#base_inc_notes_note_text');
-    setValueAndSimulateEvents(noteTextarea, noteContent); // Set value and simulate events
-
-    // Step 1: Click the "Public" checkbox
-    const publicCheckbox = document.querySelector('#note_public');
-    simulateCheckboxClick(publicCheckbox); // Simulate mouse click
-
-    // Step 2: Wait 1 second, then click the "Mark As Resolution" checkbox
-    setTimeout(() => {
-        const resolutionCheckbox = document.querySelector('#note_resolution');
-        simulateCheckboxClick(resolutionCheckbox); // Simulate mouse click
-
-        // Step 3: Wait another second, then click the "Mark Ticket Complete" checkbox
-        setTimeout(() => {
-            const completeCheckbox = document.querySelector('#note_completed');
-            if (!completeCheckbox.disabled) {
-                simulateCheckboxClick(completeCheckbox); // Simulate mouse click
-            } else {
-                console.error("The 'Mark Ticket Complete' checkbox is still disabled.");
-            }
-
-            // Step 4: Wait for all checkboxes to be checked, then click the "Save" button
-            // Step 4: Simulate a click on the Save button
-            simulateSaveButtonClick();
-        }, 200); // Wait 1 second before clicking "Mark Ticket Complete"
-    }, 200); // Wait 1 second before clicking "Mark As Resolution"
-
-    // Step 5: Send the data to the Web App
-    sendToWebApp(reason);
-}
- // Function to wait for the note textarea to be available and then set its content
-    function waitForNoteTextareaAndFillContent(noteContent, callback) {
-        const interval = setInterval(() => {
-            const noteTextarea = document.querySelector('#base_inc_notes_note_text'); // Selector for the textarea
-            if (noteTextarea) {
-                clearInterval(interval); // Stop checking once the textarea is found
-                setValueAndSimulateEvents(noteTextarea, noteContent); // Set the value and trigger events
-                console.log("Note content added.");
-
-                if (callback) callback(); // Execute callback after setting the note content
-            }
-        }, 500); // Check every 500ms
+    // If caller didn’t include a button, add a default OK that calls onConfirm
+    if (!bodyWrap.querySelector('button')) {
+      const btn = document.createElement('button');
+      btn.textContent = 'OK';
+      btn.className = 'modal-button primary';
+      btn.onclick = () => { bg.remove(); onConfirm && onConfirm(); };
+      bodyWrap.appendChild(btn);
     }
 
+    modal.appendChild(bodyWrap);
+    bg.appendChild(modal);
+    document.body.appendChild(bg);
+  }
 
-// Function to trigger the "Save" button
-function clickSaveButton() {
-    // Add a delay to ensure the button is rendered and accessible
-    setTimeout(() => {
-        // Locate the Save button using ID and ensure it's the correct one
-        const saveButton = document.querySelector('button#Save');
+  function showReasonPopup() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-background';
 
-        if (saveButton) {
-            // Check if the Save button is disabled
-            const isDisabled = saveButton.getAttribute('aria-disabled') === 'true';
-
-            if (!isDisabled) {
-                saveButton.click(); // Trigger the click
-                console.log("Save button clicked successfully.");
-            } else {
-                console.error("Save button is disabled and cannot be clicked.");
-            }
-        } else {
-            console.error("Save button not found in the DOM. Attempting to locate using parent structure...");
-
-            // Try an alternative approach by navigating the DOM structure
-            const toolbarSaveButton = document.querySelector(
-                'table#sl-856 button#Save'
-            );
-
-            if (toolbarSaveButton) {
-                const isToolbarDisabled =
-                    toolbarSaveButton.getAttribute('aria-disabled') === 'true';
-
-                if (!isToolbarDisabled) {
-                    toolbarSaveButton.click(); // Trigger the click
-                    console.log("Toolbar Save button clicked successfully.");
-                } else {
-                    console.error(
-                        "Toolbar Save button is disabled and cannot be clicked."
-                    );
-                }
-            } else {
-                console.error("Toolbar Save button also not found.");
-            }
-        }
-    }, 500); // Wait for 500ms before attempting to click
-}
-
-// Function to extract the site information
-    function getSiteInformation() {
-        const siteInput = document.querySelector('#base_inc_incident_rte_location');
-        if (siteInput) {
-            const siteValue = siteInput.value.trim();
-            console.log("Site Information:", siteValue);
-            return siteValue;
-        } else {
-            console.error("Site input field not found.");
-            return "Unknown Site";
-        }
-    }
-
-// Function to send data to the Google Apps Script Web App using window.open
-function sendToWebApp(reason) {
-    // Extract description content
-    const descriptionContent = getDescriptionBoxContent();
-
-    // Parse the description content to extract District Tag, Serial Number, and Model Number
-    const { districtTag, serialNumber, modelNumber } = parseDescriptionContent(descriptionContent);
-
-    // Get the signed-in user's email or username
-    const signedInUser = getSignedInUser();
-
-    const site = getSiteInformation();
-
-    // Get the current date in "MM/DD/YYYY" format
-    const currentDate = new Date().toLocaleDateString();
-
-    // Construct the comments field with user and date
-    const comments = `${signedInUser} - ${currentDate}`;
-
-    // Construct the URL with query parameters
-    const equipmentType = "Chromebook"; // Static value for equipment type
-    const url = `https://script.google.com/macros/s/AKfycbzhgNWhFJ7_dpriHwv5WpVvTIuFXSzMPusAMfHxmI1nEwa1wMTsxt8ZH57WLLZsw9QH/exec?equipmentType=${encodeURIComponent(equipmentType)}&makeModel=${encodeURIComponent(modelNumber)}&whiteAssetTag=${encodeURIComponent(districtTag)}&serialNumber=${encodeURIComponent(serialNumber)}&reason=${encodeURIComponent(reason)}&comments=${encodeURIComponent(comments)}&site=${encodeURIComponent(site)}`;
-
-    // Open a new tab
-    const newTab = window.open(url, '_blank');
-
-    // Wait for 3 seconds and then close the tab
-    setTimeout(() => {
-        if (newTab) {
-            newTab.close();
-            console.log("New tab closed successfully.");
-        } else {
-            console.error("Failed to open or close the new tab.");
-        }
-        // Reset everything for the next discard action
-            resetVariables();
-    }, 3000); // Close the tab after 3 seconds
-}
-
-
-// Function to click on the Notes tab based on its text content
-function clickNotesTab() {
-    // Locate all tabs
-    const tabs = document.querySelectorAll('.x-tab-strip.x-tab-strip-top li');
-    if (!tabs || tabs.length === 0) {
-        console.error("No tabs found.");
-        return false;
-    }
-
-    // Search for the Notes tab
-    for (const tab of tabs) {
-        const textSpan = tab.querySelector('.x-tab-strip-text');
-        if (textSpan && textSpan.textContent.trim().startsWith('Notes')) {
-            tab.click(); // Click the Notes tab
-            console.log("Clicked on the Notes tab:", textSpan.textContent.trim());
-            return true;
-        }
-    }
-
-    console.error("Notes tab not found.");
-    return false;
-}
-
-// Function to click the New button within the Notes tab
- // Function to click the New button in the Notes tab
-    function clickNewButtonInNotesTab(callback) {
-        // Wait for the Notes tab content to load
-        setTimeout(() => {
-            // Ensure we are within the Notes tab container
-            const notesTabContent = document.querySelector('#_p-Notes'); // ID for the Notes tab content
-            if (notesTabContent) {
-                // Find the specific New button within the Notes tab
-                const newButton = notesTabContent.querySelector('button#New');
-                if (newButton) {
-                    newButton.addEventListener('click', (e) => {
-                        e.preventDefault(); // Prevent default behavior
-                        console.log("New Note button clicked.");
-                        if (callback) callback(); // Execute the callback (e.g., to fill the note content)
-                    });
-                    newButton.click(); // Trigger the click
-                    console.log("Clicked the New button in the Notes tab.");
-                } else {
-                    console.error("New button not found within the Notes tab.");
-                }
-            } else {
-                console.error("Notes tab content not found.");
-            }
-        }, 500); // Delay to ensure the Notes tab content is fully loaded
-    }
-
-// Function to display a modern, professional pop-up with discard reasons and a custom input option
-function showReasonPopup() {
-    // Create the pop-up container
     const popup = document.createElement('div');
-    popup.style.position = 'fixed';
-    popup.style.top = '50%';
-    popup.style.left = '50%';
-    popup.style.transform = 'translate(-50%, -50%)';
-    popup.style.backgroundColor = '#ffffff';
-    popup.style.padding = '30px';
-    popup.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
-    popup.style.zIndex = '10000';
-    popup.style.borderRadius = '12px';
-    popup.style.width = '400px';
-    popup.style.fontFamily = 'Arial, sans-serif';
+    popup.className = 'modal';
 
-    // Add a title
-    const title = document.createElement('h1');
+    const closeX = document.createElement('button');
+    closeX.className = 'close-x';
+    closeX.setAttribute('aria-label', 'Close');
+    closeX.innerHTML = '&times;';
+    closeX.onclick = () => { overlay.remove(); };
+    popup.appendChild(closeX);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+
+    const title = document.createElement('h3');
     title.textContent = 'Reason for Discard';
-    title.style.marginBottom = '20px';
-    title.style.color = '#333';
-    title.style.fontSize = '24px';
-    title.style.fontWeight = 'bold';
-    title.style.textAlign = 'center';
-    popup.appendChild(title);
+    body.appendChild(title);
 
-    // Create radio button options
     const options = [
-        { value: 'Too many broken parts', label: 'Too many broken parts' },
-        { value: 'Bad Motherboard', label: 'Bad Motherboard' },
-        { value: 'Bad Power Button', label: 'Bad Power Button' },
-        { value: 'Custom', label: 'Custom Reason (please specify):' }, // Custom reason option
+      { value: 'Too many broken parts', label: 'Too many broken parts' },
+      { value: 'Bad Motherboard',       label: 'Bad Motherboard' },
+      { value: 'Bad Power Button',      label: 'Bad Power Button' },
+      { value: '__CUSTOM__',            label: 'Other Reason' } // special
     ];
 
     const form = document.createElement('form');
-    form.style.marginBottom = '20px';
+    form.style.margin = '0';
 
-    // Loop through options and create radio buttons
     options.forEach((option) => {
-        const wrapper = document.createElement('div');
-        wrapper.style.marginBottom = '10px';
-        wrapper.style.display = 'flex';
-        wrapper.style.alignItems = 'flex-start';
-        wrapper.style.gap = '10px';
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.gap = '8px';
+      row.style.marginBottom = '8px';
 
-        const input = document.createElement('input');
-        input.type = 'radio';
-        input.name = 'reason';
-        input.value = option.value;
-        input.style.cursor = 'pointer';
-        input.style.marginTop = '3px';
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'reason';
+      input.value = option.value;
+      input.id = 'reason_' + option.value.replace(/\W+/g, '_');
 
-        const label = document.createElement('label');
-        label.textContent = option.label;
-        label.style.color = '#555';
-        label.style.fontSize = '16px';
-        label.style.cursor = 'pointer';
+      const label = document.createElement('label');
+      label.setAttribute('for', input.id);
+      label.textContent = option.label;
+      label.style.cursor = 'pointer';
 
-        wrapper.appendChild(input);
-        wrapper.appendChild(label);
-
-        // Add a textarea for the custom reason option
-        if (option.value === 'Custom') {
-            const customReasonInput = document.createElement('textarea');
-            customReasonInput.placeholder = 'Enter your custom reason here...';
-            customReasonInput.style.width = '100%';
-            customReasonInput.style.height = '60px';
-            customReasonInput.style.border = '1px solid #ddd';
-            customReasonInput.style.borderRadius = '8px';
-            customReasonInput.style.padding = '10px';
-            customReasonInput.style.fontSize = '14px';
-            customReasonInput.style.resize = 'none';
-            customReasonInput.style.display = 'none'; // Initially hidden
-            customReasonInput.style.marginTop = '10px';
-            customReasonInput.style.boxSizing = 'border-box';
-
-            // Show the textarea only when the custom option is selected
-            input.addEventListener('change', () => {
-                if (input.checked) {
-                    customReasonInput.style.display = 'block';
-                }
-            });
-
-            // Hide the textarea when other options are selected
-            form.addEventListener('change', () => {
-                if (!input.checked) {
-                    customReasonInput.style.display = 'none';
-                    customReasonInput.value = ''; // Clear custom input if deselected
-                }
-            });
-
-            wrapper.appendChild(customReasonInput);
-        }
-
-        form.appendChild(wrapper);
+      row.appendChild(input);
+      row.appendChild(label);
+      form.appendChild(row);
     });
 
-    popup.appendChild(form);
+    const customInput = document.createElement('input');
+    customInput.type = 'text';
+    customInput.placeholder = 'Type custom reason…';
+    customInput.className = 'modal-input';
+    customInput.disabled = true;
+    form.appendChild(customInput);
 
-    // Add action buttons (Confirm and Cancel)
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.justifyContent = 'flex-end';
-    buttonContainer.style.gap = '10px';
+    form.addEventListener('change', () => {
+      const selected = form.querySelector('input[name="reason"]:checked');
+      const isCustom = selected && selected.value === '__CUSTOM__';
+      customInput.disabled = !isCustom;
+      if (isCustom) customInput.focus();
+    });
 
     const confirmButton = document.createElement('button');
+    confirmButton.type = 'button';
+    confirmButton.className = 'modal-button primary';
     confirmButton.textContent = 'Confirm';
-    confirmButton.style.backgroundColor = '#007bff';
-    confirmButton.style.color = 'white';
-    confirmButton.style.border = 'none';
-    confirmButton.style.borderRadius = '8px';
-    confirmButton.style.padding = '10px 15px';
-    confirmButton.style.cursor = 'pointer';
-    confirmButton.style.fontSize = '14px';
-    confirmButton.style.fontWeight = 'bold';
-    confirmButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
-    confirmButton.style.transition = 'background-color 0.3s ease';
-    confirmButton.addEventListener('mouseenter', () => {
-        confirmButton.style.backgroundColor = '#0056b3';
-    });
-    confirmButton.addEventListener('mouseleave', () => {
-        confirmButton.style.backgroundColor = '#007bff';
-    });
 
-    const cancelButton = document.createElement('button');
-    cancelButton.textContent = 'Cancel';
-    cancelButton.style.backgroundColor = '#dc3545';
-    cancelButton.style.color = 'white';
-    cancelButton.style.border = 'none';
-    cancelButton.style.borderRadius = '8px';
-    cancelButton.style.padding = '10px 15px';
-    cancelButton.style.cursor = 'pointer';
-    cancelButton.style.fontSize = '14px';
-    cancelButton.style.fontWeight = 'bold';
-    cancelButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
-    cancelButton.style.transition = 'background-color 0.3s ease';
-    cancelButton.addEventListener('mouseenter', () => {
-        cancelButton.style.backgroundColor = '#c82333';
-    });
-    cancelButton.addEventListener('mouseleave', () => {
-        cancelButton.style.backgroundColor = '#dc3545';
-    });
-
-    buttonContainer.appendChild(confirmButton);
-    buttonContainer.appendChild(cancelButton);
-    popup.appendChild(buttonContainer);
-
-    // Append the pop-up to the document body
-    document.body.appendChild(popup);
-
-    // Handle the Confirm button click
-    confirmButton.addEventListener('click', (e) => {
-        e.preventDefault(); // Prevent form submission
-
-        // Get the selected reason
-        const selectedOption = form.querySelector('input[name="reason"]:checked');
-        let customReason = '';
-
-        // Check if custom reason was selected
-        if (selectedOption && selectedOption.value === 'Custom') {
-            const customReasonInput = form.querySelector('textarea');
-            customReason = customReasonInput.value.trim();
-            if (!customReason) {
-                alert('Please specify your custom reason.');
-                return;
-            }
+    const submit = () => {
+      const selected = form.querySelector('input[name="reason"]:checked');
+      if (!selected) {
+        alert('Please select a reason.');
+        return;
+      }
+      let reason = selected.value;
+      if (reason === '__CUSTOM__') {
+        reason = (customInput.value || '').trim();
+        if (!reason) {
+          alert('Please type a custom reason.');
+          customInput.focus();
+          return;
         }
+      }
+      autofillForm(reason);
+      overlay.remove();
+    };
 
-        // Use the custom reason if provided, otherwise use the selected option
-        const reason = customReason || (selectedOption ? selectedOption.value : '');
-
-        if (reason) {
-            autofillForm(reason); // Call the autofill function with the selected reason
-            document.body.removeChild(popup); // Remove the pop-up
-        } else {
-            alert('Please select or enter a reason.');
-        }
+    customInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      }
     });
+    confirmButton.addEventListener('click', submit);
 
-    // Handle the Cancel button click
-    cancelButton.addEventListener('click', (e) => {
-        e.preventDefault(); // Prevent form submission
-        document.body.removeChild(popup); // Close the pop-up
+    body.appendChild(form);
+    body.appendChild(confirmButton);
+
+    popup.appendChild(body);
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+  }
+
+  /* =========================
+   *  MAIN FLOWS
+   * ========================= */
+  function autofillForm(reason) {
+    const today = new Date().toLocaleDateString();
+    const noteContent = `DISCARDED: ${today}\nADDED TO INFORMATION TECHNOLOGY DISCARD LIST\nREASON: ${reason}`;
+
+    const noteTextarea = document.querySelector('#base_inc_notes_note_text');
+    setValueAndSimulateEvents(noteTextarea, noteContent);
+
+    const publicCheckbox = document.querySelector('#note_public');
+    simulateCheckboxClick(publicCheckbox);
+
+    setTimeout(() => {
+      const resolutionCheckbox = document.querySelector('#note_resolution');
+      simulateCheckboxClick(resolutionCheckbox);
+
+      setTimeout(() => {
+        const completeCheckbox = document.querySelector('#note_completed');
+        if (!completeCheckbox?.disabled) simulateCheckboxClick(completeCheckbox);
+        simulateSaveButtonClick();
+      }, 200);
+    }, 200);
+
+    sendToWebApp(reason);
+  }
+
+  function sendToWebApp(reason) {
+    const descriptionContent = getDescriptionBoxContent();
+    const { districtTag, serialNumber, modelNumber } = parseDescriptionContent(descriptionContent);
+    const signedInUser = getSignedInUser();
+    const currentDate = new Date().toLocaleDateString();
+    const comments = `${signedInUser} - ${currentDate}`;
+
+    const siteInput = document.querySelector('#base_inc_incident_rte_location');
+    const siteLocation = siteInput ? siteInput.value : 'Unknown';
+
+    const AUTH_KEY = 'discardWebAppAuthorized';
+    const alreadyAuthorized = localStorage.getItem(AUTH_KEY) === 'true';
+
+    const baseUrl = 'https://script.google.com/macros/s/AKfycbzjx36W8VXS9UhcseJOxORcF8NwFfxMYmrSUFCS-AYucugYHAV_rfD9yJvv0Yj7VMey/exec';
+    const params = new URLSearchParams({
+      equipmentType: 'Chromebook',
+      makeModel: modelNumber || 'Unknown Model',
+      whiteAssetTag: districtTag || 'Unknown Asset Tag',
+      serialNumber: serialNumber || 'Unknown Serial Number',
+      reason: reason || 'No Reason Provided',
+      comments: comments || 'No Comments',
+      site: siteLocation || 'Unknown Site'
     });
-}
-// Main function to perform all actions in sequence
-function automateTicketInteraction() {
-    resetVariables();
+    if (alreadyAuthorized) params.set('autoClose', '1');
 
-        const descriptionContent = getDescriptionBoxContent(); // Step 1: Extract description
-        if (descriptionContent) {
-            const notesTabClicked = clickNotesTab(); // Step 2: Click the Notes tab
-            if (notesTabClicked) {
-                clickNewButtonInNotesTab(() => {
-                    console.log("New Note button clicked. Showing reason popup...");
-                    showReasonPopup(); // Step 3: Show the reason selection popup
-                });
-            }
-        }
+    const url = `${baseUrl}?${params.toString()}`;
+    console.log('[Discard] URL:', url);
+
+    const tab = window.open(url, '_blank');
+
+    if (!alreadyAuthorized) {
+      const html = `
+        <h2>Authorize Google Sheets</h2>
+        <p>A new tab has opened.</p>
+        <ol style="margin: 0 0 12px 20px; text-align:left;">
+          <li>Click <strong>Review permissions</strong>.</li>
+          <li>Choose your account and click <strong>Allow</strong>.</li>
+          <li>Wait until the page says <strong>Success</strong>.</li>
+          <li>Return here and press <strong>Continue</strong>.</li>
+        </ol>
+        <div>
+          <button id="discardAuthContinue" class="modal-button primary">Continue</button>
+          <button id="discardAuthCancel" class="modal-button secondary">Cancel</button>
+        </div>
+      `;
+      showModal(html, null);
+      document.getElementById('discardAuthContinue')?.addEventListener('click', () => {
+        document.querySelector('.modal-background')?.remove();
+        localStorage.setItem(AUTH_KEY, 'true');
+        console.log('[Discard] Authorization marked complete.');
+      });
+      document.getElementById('discardAuthCancel')?.addEventListener('click', () => {
+        document.querySelector('.modal-background')?.remove();
+      });
+    } else {
+      setTimeout(() => { try { tab && tab.close(); } catch (e) {} }, 2000);
     }
+  }
+
+  function clickNotesTab() {
+    const tabs = document.querySelectorAll('.x-tab-strip.x-tab-strip-top li');
+    if (!tabs?.length) return false;
+    for (const tab of tabs) {
+      const textSpan = tab.querySelector('.x-tab-strip-text');
+      if (textSpan && textSpan.textContent.trim().startsWith('Notes')) {
+        tab.click();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function clickNewButtonInNotesTab() {
+    setTimeout(() => {
+      const notesTabContent = document.querySelector('#_p-Notes');
+      if (!notesTabContent) return;
+      const newButton = notesTabContent.querySelector('button#New');
+      if (!newButton) return;
+      newButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        showReasonPopup();
+      });
+      newButton.click();
+    }, 1000);
+  }
+
+  function automateTicketInteraction() {
+    const descriptionContent = getDescriptionBoxContent();
+    if (!descriptionContent) return;
+    const notesTabClicked = clickNotesTab();
+    if (notesTabClicked) clickNewButtonInNotesTab();
+  }
 
 })();
-

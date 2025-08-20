@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Log Help Desk Call
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.1.2
 // @description  Adds the "Log Call" button and submits the log form to SchoolDude.
 // @author       You
 // @match        *://*.schooldude.com/*

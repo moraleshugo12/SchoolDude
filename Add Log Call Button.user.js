@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Log Help Desk Call
 // @namespace    http://tampermonkey.net/
-// @version      1.1.2
+// @version      1.1.3
 // @description  Adds the "Log Call" button and submits the log form to SchoolDude.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -797,25 +797,77 @@
         console.log('Log Call button added.');
     }
 
-    // Try to add the button immediately and keep trying (useful for SPA loads)
-    function boot() {
-        ensureLogCallStyles();
-        addLogCallButton();
-        // gently re-try for a bit in case the toolbar renders late
-        let tries = 0;
-        const iv = setInterval(() => {
-            if (document.getElementById('LogCallButton')) {
-                clearInterval(iv);
-                return;
-            }
-            addLogCallButton();
-            if (++tries > 20) clearInterval(iv);
-        }, 1500);
+      // ===== Wait for Add Chromebooks before adding Log Call (matches your working pattern) =====
+  let logBtnScheduled = false;
+  let logBtnInserted = false;
+
+  function createAndInsertLogCallAfterChromebooks(footer) {
+    if (!footer) return;
+    const toolbar = footer.querySelector('.x-toolbar-left-row');
+    if (!toolbar) return;
+
+    const addCbBtn = footer.querySelector('#AddChromebooksButton');
+    if (!addCbBtn) return; // defer until the Chromebooks button is present
+
+    if (footer.querySelector('#LogCallButton')) {
+      logBtnInserted = true;
+      return; // already there
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
+    // Build our <td> … Log Call … </td>
+    ensureLogCallStyles?.();
+    const td = createLogCallButtonElement(); // your function returns the <td> wrapper
+
+    // Insert right after Add Chromebooks
+    const afterCell = addCbBtn.closest('td');
+    if (afterCell && afterCell.parentNode) {
+      afterCell.parentNode.insertBefore(td, afterCell.nextSibling);
     } else {
-        boot();
+      toolbar.appendChild(td);
     }
+
+    logBtnInserted = true;
+    console.log('[LogCall] Button added after Add Chromebooks.');
+  }
+
+  function addLogCallToSpecificFooter() {
+    if (logBtnInserted && document.getElementById('LogCallButton')) return;
+
+    const footers = document.querySelectorAll('.x-panel-footer');
+    for (const footer of footers) {
+      // Only target the footer that contains the Personalizations control (like your working script)
+      const hasPersonalizations = !!footer.querySelector('button#Personalizations');
+      if (!hasPersonalizations) continue;
+
+      // Only insert once the Add Chromebooks button exists in that footer
+      const hasAddChromebooks = !!footer.querySelector('#AddChromebooksButton');
+      if (!hasAddChromebooks) continue;
+
+      createAndInsertLogCallAfterChromebooks(footer);
+      if (logBtnInserted) break;
+    }
+  }
+
+  // Throttled MutationObserver (same behavior as your working code)
+  const logObserver = new MutationObserver(() => {
+    // If our button was removed by a re-render, allow re-adding
+    if (logBtnInserted && !document.getElementById('LogCallButton')) {
+      logBtnInserted = false;
+    }
+    if (logBtnInserted || logBtnScheduled) return;
+    logBtnScheduled = true;
+    setTimeout(() => {
+      logBtnScheduled = false;
+      addLogCallToSpecificFooter();
+    }, 100); // batch rapid DOM churn
+  });
+
+  // Try once after full load, then watch for SPA changes
+  window.addEventListener('load', () => {
+    addLogCallToSpecificFooter();
+    if (!logBtnInserted) {
+      logObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  });
+
 })();

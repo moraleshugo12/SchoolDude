@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Log Help Desk Call
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.1.4
 // @description  Adds the "Log Call" button and submits the log form to SchoolDude.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -857,102 +857,90 @@
         return td;
     }
 
-    function addLogCallButton() {
-        // avoid duplicates
-        if (document.getElementById('LogCallButton')) return;
+    
 
-        const toolbarRow = document.querySelector('.x-panel-footer .x-toolbar-left-row') ||
-            document.querySelector('.x-toolbar-left-row');
-        if (!toolbarRow) {
-            // toolbar not present yet
-            return;
-        }
+   // ===== Place Log Call button right after "Reset" (single instance, no duplicates) =====
+let lcNode = null;      // single source of truth for our button DOM
+let lcPlaced = false;
+let lcRafId = 0;
 
-        const td = createLogCallButtonElement();
-        const afterThisTd = (document.querySelector('#AddChromebooksButton') || {}).closest
-            ? document.querySelector('#AddChromebooksButton').closest('td')
-            : null;
+function getHostToolbarRow() {
+  // Prefer the ticket footer row that actually has Reset + (New or Personalizations)
+  const rows = document.querySelectorAll('.x-panel-footer .x-toolbar-left-row, .x-toolbar-left-row');
+  for (const row of rows) {
+    const hasReset = !!row.querySelector('button#Reset');
+    const hasNewOrPers = !!row.querySelector('button#New') || !!row.querySelector('button#Personalizations');
+    if (hasReset && hasNewOrPers) return row;
+  }
+  return null;
+}
 
-        if (afterThisTd && afterThisTd.parentNode) {
-            afterThisTd.parentNode.insertBefore(td, afterThisTd.nextSibling);
-        } else {
-            toolbarRow.appendChild(td);
-        }
+function cleanupOrphanDuplicates() {
+  // Remove any stray copies (from older scripts) or duplicates
+  const allBtns = document.querySelectorAll('#LogCallButton');
+  if (allBtns.length <= 1) return;
 
-        console.log('Log Call button added.');
+  // Keep the one inside our lcNode (if present) or the first one; remove the rest
+  const keep = lcNode?.querySelector('#LogCallButton') || allBtns[0];
+  allBtns.forEach(btn => {
+    if (btn !== keep) {
+      const td = btn.closest('td');
+      (td || btn).remove();
     }
+  });
+}
 
-    // ===== Wait for Add Chromebooks before adding Log Call (matches your working pattern) =====
-    let logBtnScheduled = false;
-    let logBtnInserted = false;
+function placeLogCallAfterReset() {
+  const row = getHostToolbarRow();
+  if (!row) return;
 
-    function createAndInsertLogCallAfterChromebooks(footer) {
-        if (!footer) return;
-        const toolbar = footer.querySelector('.x-toolbar-left-row');
-        if (!toolbar) return;
+  // Ensure single copy
+  cleanupOrphanDuplicates();
 
-        const addCbBtn = footer.querySelector('#AddChromebooksButton');
-        if (!addCbBtn) return; // defer until the Chromebooks button is present
+  // Create once, then reuse the same node
+  if (!lcNode) lcNode = createLogCallButtonElement();
 
-        if (footer.querySelector('#LogCallButton')) {
-            logBtnInserted = true;
-            return; // already there
-        }
+  // If somehow another #LogCallButton exists elsewhere, remove it and reuse our lcNode
+  const extras = document.querySelectorAll('#LogCallButton');
+  if (extras.length > 1) cleanupOrphanDuplicates();
 
-        // Build our <td> … Log Call … </td>
-        ensureLogCallStyles?.();
-        const td = createLogCallButtonElement(); // your function returns the <td> wrapper
+  const resetTable = row.querySelector('button#Reset')?.closest('table');
+  const resetCell  = resetTable?.closest('td');
+  if (!resetCell) return;
 
-        // Insert right after Add Chromebooks
-        const afterCell = addCbBtn.closest('td');
-        if (afterCell && afterCell.parentNode) {
-            afterCell.parentNode.insertBefore(td, afterCell.nextSibling);
-        } else {
-            toolbar.appendChild(td);
-        }
+  // Match spacing: Reset gets 5px, our last button gets 0px
+  if (resetTable) resetTable.style.marginRight = '5px';
+  const ourTable = lcNode.querySelector('table.x-btn');
+  if (ourTable) ourTable.style.marginRight = '0px';
 
-        logBtnInserted = true;
-        console.log('[LogCall] Button added after Add Chromebooks.');
-    }
+  // Insert immediately after Reset cell, only if not already there
+  if (lcNode !== resetCell.nextSibling) {
+    resetCell.parentNode.insertBefore(lcNode, resetCell.nextSibling);
+  }
 
-    function addLogCallToSpecificFooter() {
-        if (logBtnInserted && document.getElementById('LogCallButton')) return;
+  lcPlaced = true;
+  // console.log('[LogCall] Button placed after Reset.');
+}
 
-        const footers = document.querySelectorAll('.x-panel-footer');
-        for (const footer of footers) {
-            // Only target the footer that contains the Personalizations control (like your working script)
-            const hasPersonalizations = !!footer.querySelector('button#Personalizations');
-            if (!hasPersonalizations) continue;
+function schedulePlace() {
+  if (lcRafId) cancelAnimationFrame(lcRafId);
+  lcRafId = requestAnimationFrame(() => {
+    lcRafId = 0;
+    placeLogCallAfterReset();
+  });
+}
 
-            // Only insert once the Add Chromebooks button exists in that footer
-            const hasAddChromebooks = !!footer.querySelector('#AddChromebooksButton');
-            if (!hasAddChromebooks) continue;
+// Run ASAP and keep it current for SPA updates
+schedulePlace();
+const lcObserver = new MutationObserver(() => {
+  // If our node was removed, allow re-adding
+  if (lcPlaced && !document.getElementById('LogCallButton')) lcPlaced = false;
+  schedulePlace();
+});
+lcObserver.observe(document.body, { childList: true, subtree: true });
+window.addEventListener('load', schedulePlace);
 
-            createAndInsertLogCallAfterChromebooks(footer);
-            if (logBtnInserted) break;
-        }
-    }
 
-    // Throttled MutationObserver (same behavior as your working code)
-    const logObserver = new MutationObserver(() => {
-        // If our button was removed by a re-render, allow re-adding
-        if (logBtnInserted && !document.getElementById('LogCallButton')) {
-            logBtnInserted = false;
-        }
-        if (logBtnInserted || logBtnScheduled) return;
-        logBtnScheduled = true;
-        setTimeout(() => {
-            logBtnScheduled = false;
-            addLogCallToSpecificFooter();
-        }, 100); // batch rapid DOM churn
-    });
 
-    // Try once after full load, then watch for SPA changes
-    window.addEventListener('load', () => {
-        addLogCallToSpecificFooter();
-        if (!logBtnInserted) {
-            logObserver.observe(document.body, { childList: true, subtree: true });
-        }
-    });
 
 })();

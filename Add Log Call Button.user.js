@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Log Help Desk Call
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
+// @version      1.1.4
 // @description  Adds the "Log Call" button and submits the log form to SchoolDude.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -439,6 +439,72 @@
         return true;
     }
 
+    // ====== Incident Status (for closing when resolved on call) ======
+    const STATUS_INPUT_SEL = '#base_inc_incident_incident_status';
+    const STATUS_LIST_CONTAINER_SEL = '#base_inc_incident_incident_status-combo-list';
+
+    function getIncidentStatusTrigger() {
+        const input = document.querySelector(STATUS_INPUT_SEL);
+        if (!input) return null;
+        const wrap = input.closest('.x-form-field-wrap');
+        return wrap ? (wrap.querySelector('img.x-form-trigger') || wrap.querySelector('img')) : null;
+    }
+    async function openIncidentStatusDropdown() {
+        const input = await waitForEl(STATUS_INPUT_SEL, 10000);
+        if (!input) throw new Error('Incident Status input not found');
+        const trigger = getIncidentStatusTrigger();
+        if (!trigger) throw new Error('Incident Status trigger not found');
+
+        input.focus();
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        trigger.click();
+
+        await sleep(220);
+        let list = await waitForEl(STATUS_LIST_CONTAINER_SEL, 5000);
+        if (!list) {
+            trigger.click();
+            await sleep(220);
+            list = await waitForEl(STATUS_LIST_CONTAINER_SEL, 5000);
+        }
+        if (!list) throw new Error('Incident Status list did not appear');
+        await sleep(80);
+        return { input, list };
+    }
+    async function selectIncidentStatusByLabel(label) {
+        const wanted = (label || '').toLowerCase().trim();
+        const { input, list } = await openIncidentStatusDropdown();
+
+        // (If the field filters) type the label
+        input.value = label;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'e' }));
+
+        const targetSpan = await waitForListMatch(
+            list,
+            (sp) => {
+                const q = (sp.getAttribute('qtip') || '').toLowerCase().trim();
+                const txt = (sp.textContent || '').toLowerCase().trim();
+                return q === wanted || txt === wanted || q.includes(wanted) || txt.includes(wanted);
+            },
+            9000,
+            140
+        );
+        if (!targetSpan) throw new Error('Incident Status not found in dropdown: ' + label);
+
+        const item = targetSpan.closest('.x-combo-list-item') || targetSpan;
+        item.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        item.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        item.dispatchEvent(new MouseEvent('mouseup',   { bubbles: true }));
+        item.click();
+
+        await sleep(140);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.blur();
+
+        console.log('Incident Status set to:', (targetSpan.textContent || '').trim());
+        return true;
+    }
+
     // ====== Description box ======
     const DESC_SEL = '#base_inc_incident_description';
 
@@ -447,6 +513,7 @@
         const techLine = payload.techLabel || payload.techEmail || '—';
         const phoneLine = payload.phone || '—';
         const roomLine = payload.room || '—';
+        const resolved = payload.resolvedOnCall ? 'Yes' : 'No';
         return [
             `CALLER: ${payload.caller} ||`,
             `SITE: ${payload.school} ||`,
@@ -454,6 +521,7 @@
             `PHONE: ${phoneLine} ||`,
             `TECH: ${techLine} ||`,
             `URGENCY: ${payload.urgency} ||`,
+            `RESOLVED ON CALL: ${resolved} ||`,
             `SUMMARY: ${payload.summary} ||`,
             ``,
             `Logged via Quick Log on ${dt}`
@@ -606,6 +674,14 @@
         <input id="lcSummary" type="text" placeholder="Short description" />
       </div>
 
+      <!-- Resolved during call -->
+      <div class="lc-field" style="margin-top:4px;">
+        <label for="lcResolved" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input id="lcResolved" type="checkbox" />
+          Ticket was resolved during call (close as “Closed”)
+        </label>
+      </div>
+
       <div class="lc-actions">
         <button class="lc-btn lc-btn-secondary" id="lcCancel">Cancel</button>
         <button class="lc-btn lc-btn-primary" id="lcSubmit">Submit</button>
@@ -624,6 +700,7 @@
         const phone = get('lcPhone');
         const urgency = get('lcUrgency');
         const summary = get('lcSummary');
+        const resolvedChk = get('lcResolved');
         const errorBox = get('lcError');
 
         // Close handlers
@@ -650,6 +727,7 @@
                 phone: phone.value.trim(), // optional
                 urgency: urgency.value.trim(),
                 summary: summary.value.trim(),
+                resolvedOnCall: !!resolvedChk.checked,
                 ts: Date.now()
             };
 
@@ -699,6 +777,13 @@
                 updateWaitOverlay(waitOverlay, 'Adding description…');
                 await sleep(250);
                 await fillTicketDescription(composeDescription(payload));
+
+                // If resolved during call, set Incident Status -> Closed
+                if (payload.resolvedOnCall) {
+                    updateWaitOverlay(waitOverlay, 'Setting status to Closed…');
+                    await sleep(250);
+                    await selectIncidentStatusByLabel('Closed');
+                }
 
                 updateWaitOverlay(waitOverlay, 'Saving ticket…');
                 await sleep(300);
@@ -797,77 +882,77 @@
         console.log('Log Call button added.');
     }
 
-      // ===== Wait for Add Chromebooks before adding Log Call (matches your working pattern) =====
-  let logBtnScheduled = false;
-  let logBtnInserted = false;
+    // ===== Wait for Add Chromebooks before adding Log Call (matches your working pattern) =====
+    let logBtnScheduled = false;
+    let logBtnInserted = false;
 
-  function createAndInsertLogCallAfterChromebooks(footer) {
-    if (!footer) return;
-    const toolbar = footer.querySelector('.x-toolbar-left-row');
-    if (!toolbar) return;
+    function createAndInsertLogCallAfterChromebooks(footer) {
+        if (!footer) return;
+        const toolbar = footer.querySelector('.x-toolbar-left-row');
+        if (!toolbar) return;
 
-    const addCbBtn = footer.querySelector('#AddChromebooksButton');
-    if (!addCbBtn) return; // defer until the Chromebooks button is present
+        const addCbBtn = footer.querySelector('#AddChromebooksButton');
+        if (!addCbBtn) return; // defer until the Chromebooks button is present
 
-    if (footer.querySelector('#LogCallButton')) {
-      logBtnInserted = true;
-      return; // already there
+        if (footer.querySelector('#LogCallButton')) {
+            logBtnInserted = true;
+            return; // already there
+        }
+
+        // Build our <td> … Log Call … </td>
+        ensureLogCallStyles?.();
+        const td = createLogCallButtonElement(); // your function returns the <td> wrapper
+
+        // Insert right after Add Chromebooks
+        const afterCell = addCbBtn.closest('td');
+        if (afterCell && afterCell.parentNode) {
+            afterCell.parentNode.insertBefore(td, afterCell.nextSibling);
+        } else {
+            toolbar.appendChild(td);
+        }
+
+        logBtnInserted = true;
+        console.log('[LogCall] Button added after Add Chromebooks.');
     }
 
-    // Build our <td> … Log Call … </td>
-    ensureLogCallStyles?.();
-    const td = createLogCallButtonElement(); // your function returns the <td> wrapper
+    function addLogCallToSpecificFooter() {
+        if (logBtnInserted && document.getElementById('LogCallButton')) return;
 
-    // Insert right after Add Chromebooks
-    const afterCell = addCbBtn.closest('td');
-    if (afterCell && afterCell.parentNode) {
-      afterCell.parentNode.insertBefore(td, afterCell.nextSibling);
-    } else {
-      toolbar.appendChild(td);
+        const footers = document.querySelectorAll('.x-panel-footer');
+        for (const footer of footers) {
+            // Only target the footer that contains the Personalizations control (like your working script)
+            const hasPersonalizations = !!footer.querySelector('button#Personalizations');
+            if (!hasPersonalizations) continue;
+
+            // Only insert once the Add Chromebooks button exists in that footer
+            const hasAddChromebooks = !!footer.querySelector('#AddChromebooksButton');
+            if (!hasAddChromebooks) continue;
+
+            createAndInsertLogCallAfterChromebooks(footer);
+            if (logBtnInserted) break;
+        }
     }
 
-    logBtnInserted = true;
-    console.log('[LogCall] Button added after Add Chromebooks.');
-  }
+    // Throttled MutationObserver (same behavior as your working code)
+    const logObserver = new MutationObserver(() => {
+        // If our button was removed by a re-render, allow re-adding
+        if (logBtnInserted && !document.getElementById('LogCallButton')) {
+            logBtnInserted = false;
+        }
+        if (logBtnInserted || logBtnScheduled) return;
+        logBtnScheduled = true;
+        setTimeout(() => {
+            logBtnScheduled = false;
+            addLogCallToSpecificFooter();
+        }, 100); // batch rapid DOM churn
+    });
 
-  function addLogCallToSpecificFooter() {
-    if (logBtnInserted && document.getElementById('LogCallButton')) return;
-
-    const footers = document.querySelectorAll('.x-panel-footer');
-    for (const footer of footers) {
-      // Only target the footer that contains the Personalizations control (like your working script)
-      const hasPersonalizations = !!footer.querySelector('button#Personalizations');
-      if (!hasPersonalizations) continue;
-
-      // Only insert once the Add Chromebooks button exists in that footer
-      const hasAddChromebooks = !!footer.querySelector('#AddChromebooksButton');
-      if (!hasAddChromebooks) continue;
-
-      createAndInsertLogCallAfterChromebooks(footer);
-      if (logBtnInserted) break;
-    }
-  }
-
-  // Throttled MutationObserver (same behavior as your working code)
-  const logObserver = new MutationObserver(() => {
-    // If our button was removed by a re-render, allow re-adding
-    if (logBtnInserted && !document.getElementById('LogCallButton')) {
-      logBtnInserted = false;
-    }
-    if (logBtnInserted || logBtnScheduled) return;
-    logBtnScheduled = true;
-    setTimeout(() => {
-      logBtnScheduled = false;
-      addLogCallToSpecificFooter();
-    }, 100); // batch rapid DOM churn
-  });
-
-  // Try once after full load, then watch for SPA changes
-  window.addEventListener('load', () => {
-    addLogCallToSpecificFooter();
-    if (!logBtnInserted) {
-      logObserver.observe(document.body, { childList: true, subtree: true });
-    }
-  });
+    // Try once after full load, then watch for SPA changes
+    window.addEventListener('load', () => {
+        addLogCallToSpecificFooter();
+        if (!logBtnInserted) {
+            logObserver.observe(document.body, { childList: true, subtree: true });
+        }
+    });
 
 })();

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Order Parts Button (Styled)
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.7.1
 // @description  Adds an "Order Parts" button and a modern modal for part selection; handles Apps Script auth + autoclose.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -211,7 +211,8 @@
       "LCD VIDEO CABLE (FOR LCD WITH 40 PIN CONNECTOR) SKU: 50.A8ZN7.005": "LCD Video Cable (40-pin)",
       "PALMREST WITH KEYBOARD & TOUCHPAD (WITH WORLD-FACING CAMERA LENS) SKU: 60.A8ZN7.001-CA": "Palmrest with Keyboard & Touchpad (World Camera)",
       "PALMREST WITH KEYBOARD & TOUCHPAD (WITHOUT WORLD-FACING CAMERA LENS) SKU: 60.AYSN7.001-CA": "Palmrest with Keyboard & Touchpad",
-      "LCD 11.6 WXGA HD 1366X768 30 PIN TOUCHSCREEN W/BEZEL W/ LOCKDOWN CONNECTOR SKU: 6M.A8ZN7.009": "LCD HD (30-pin)",
+      "LCD 11.6 WXGA HD 1366X768 30 PIN TOUCHSCREEN W/BEZEL W/ LOCKDOWN CONNECTOR SKU: 6M.A8ZN7.009": "LCD HD (30-pin LockDown Connector) ",
+      "LCD 11.6 WXGA HD 1366X768 30 PIN TOUCHSCREEN SKU: 6M.A8ZN7.001": "LCD HD (30-pin Regular Port)",
       "LCD HD 1366X768 40 PIN CONNECTOR SKU: 6M.A8ZN7.006": "LCD HD (40-pin)",
       "HINGE RIGHT SKU: 33.A8ZN7.001": "Right Hinge",
       "HINGE LEFT SKU: 33.A8ZN7.002": "Left Hinge",

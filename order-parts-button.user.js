@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Order Parts Button (Styled)
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Adds an "Order Parts" button and a modern modal for part selection; handles Apps Script auth + autoclose.
 // @author       You
 // @match        *://*.schooldude.com/*

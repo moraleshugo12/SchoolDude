@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Discard Button to Footer with Automation Trigger
 // @namespace    http://tampermonkey.net/
-// @version      1.4.1
+// @version      1.5
 // @description  Adds a "Discard" button to the footer that contains the "Clone Ticket" button and starts the automation process when clicked.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -513,7 +513,7 @@
     const AUTH_KEY = 'discardWebAppAuthorized';
     const alreadyAuthorized = localStorage.getItem(AUTH_KEY) === 'true';
 
-    const baseUrl = 'https://script.google.com/macros/s/AKfycbzjx36W8VXS9UhcseJOxORcF8NwFfxMYmrSUFCS-AYucugYHAV_rfD9yJvv0Yj7VMey/exec';
+    const baseUrl = 'https://script.google.com/a/macros/dinuba.k12.ca.us/s/AKfycbwe3uqe7VAxTuEOqh-yMn2WI-zwO8hf1T8Tm_Zi48ITnnoLYxmdm8p_JGXGI7zl2U_d/exec';
     const params = new URLSearchParams({
       equipmentType: 'Chromebook',
       makeModel: modelNumber || 'Unknown Model',

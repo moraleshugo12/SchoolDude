@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Order Parts Button (Styled)
 // @namespace    http://tampermonkey.net/
-// @version      1.7.1
+// @version      1.8.1
 // @description  Adds an "Order Parts" button and a modern modal for part selection; handles Apps Script auth + autoclose.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -233,7 +233,67 @@
       "LCD TOP COVER SKU: 60.H8YN7.004": "LCD Top Cover",
       "LCD BEZEL SKU: 60.H8YN7.005": "LCD Bezel",
     },
+    "300E G4 YOGA (TOUCH)": {
+      "AC ADAPTER 65W USB-C 3P *INCLUDES POWER CORD* SKU: 5A11J62108": "AC ADAPTER 65W USB-C 3P *INCLUDES POWER CORD*",
+      "UL Certified, ODM (Original Design Manufacturer) 65W USB-C AC ADAPTER is compatible with most LENOVOmodel Chromebooks. This is not a generic product. Please contact your dedicated Sales Executive for specifications or additional information. UL Certified ODM 65W USB-C AC ADAPTER *INCLUDES POWER CORD* (LENOVO model compatible) SKU: AG-65W-USBC05": "UL Certified, ODM (Original Design Manufacturer) 65W USB-C AC ADAPTER is compatible with most LENOVOmodel Chromebooks. This is not a generic product. Please contact your dedicated Sales Executive for specifications or additional information. UL Certified ODM 65W USB-C AC ADAPTER *INCLUDES POWER CORD* (LENOVO model compatible)",
+      "UL Certified, ODM (Original Design Manufacturer) 65W USB-C AC ADAPTER is compatible with most LENOVOmodel Chromebooks. This is not a generic product. Please contact your dedicated Sales Executive for specifications or additional information. *POWER CORD NOT INCLUDED* UL Certified ODM 65W USB-C AC ADAPTER *POWER CORD NOT INCLUDED* (LENOVO model compatible) SKU: AG-65W-USBC05-NOCORD": "UL Certified, ODM (Original Design Manufacturer) 65W USB-C AC ADAPTER is compatible with most LENOVOmodel Chromebooks. This is not a generic product. Please contact your dedicated Sales Executive for specifications or additional information. *POWER CORD NOT INCLUDED* UL Certified ODM 65W USB-C AC ADAPTER *POWER CORD NOT INCLUDED* (LENOVO model compatible)",
+      "UL Certified, ODM (Original Design Manufacturer) 65W USB-C WALL AC ADAPTER is compatible with most LENOVO model Chromebooks. This is not a generic product. Please contact your dedicated Sales Executive for specifications or additional information. UL Certified ODM 65W USB-C WALL AC ADAPTER (LENOVO model compatible) SKU: AG-WALL65W-USBC05": "UL Certified, ODM (Original Design Manufacturer) 65W USB-C WALL AC ADAPTER is compatible with most LENOVO model Chromebooks. This is not a generic product. Please contact your dedicated Sales Executive for specifications or additional information. UL Certified ODM 65W USB-C WALL AC ADAPTER (LENOVO model compatible)",
+      "BATTERY 3 CELL SKU: 5B11K08432": "BATTERY 3 CELL",
+      "AG Recertified parts are fully functional. Part could include light to moderate blemishes.*RECERTIFIED* BATTERY 3 CELL SKU: 5B11K08432-RECL": "AG Recertified parts are fully functional. Part could include light to moderate blemishes.*RECERTIFIED* BATTERY 3 CELL",
+      "DAUGHTERBOARD CABLE SKU: 5C11H81502": "DAUGHTERBOARD CABLE",
+      "LCD VIDEO CABLE SKU: 5C11H81514": "LCD VIDEO CABLE",
+      "PEN CHARGER CABLE SKU: 5C11H81515": "PEN CHARGER CABLE",
+      "CAMERA CABLE (WORLD-FACING) SKU: 5C11H81516": "CAMERA CABLE (WORLD-FACING)",
+      "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* CAMERA CABLE (WORLD-FACING) SKU: 5C11H81516-RECL": "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* CAMERA CABLE (WORLD-FACING)",
+      "SENSOR BOARD (WITHOUT CABLE) SKU: 5C51J62724": "SENSOR BOARD (WITHOUT CABLE)",
+      "STYLUS BOARD SKU: 5C51J62725": "STYLUS BOARD",
+      "DAUGHTERBOARD (WITHOUT CABLES) SKU: 5C51J62726": "DAUGHTERBOARD (WITHOUT CABLES)",
+      "PALMREST WITH TOUCHPAD (WITHOUT KEYBOARD) SKU: 5M11H62893": "PALMREST WITH TOUCHPAD (WITHOUT KEYBOARD)",
+      "PALMREST WITH KEYBOARD & TOUCHPAD SKU: 5M11H62893-CA": "PALMREST WITH KEYBOARD & TOUCHPAD",
+      "PALMREST WITH KEYBOARD & TOUCHPAD (WITH WORLD-FACING CAMERA LENS) SKU: 5M11H62894-CA": "PALMREST WITH KEYBOARD & TOUCHPAD (WITH WORLD-FACING CAMERA LENS)",
+      "KEYBOARD SKU: 5N21L44038": "KEYBOARD",
+      "(TOUCH) 11.6\" LCD HD 1366X768 MATTE 30 PIN CONNECTOR (WITHOUT SENSOR BOARD) SKU: 5D11C95908": "(TOUCH) 11.6\" LCD HD 1366X768 MATTE 30 PIN CONNECTOR (WITHOUT SENSOR BOARD)",
+      "(TOUCH) 11.6\" LCD HD 1366X768 MATTE 30 PIN CONNECTOR (WITH SENSOR BOARD) SKU: 5D11C95908-WITHSENSOR": "(TOUCH) 11.6\" LCD HD 1366X768 MATTE 30 PIN CONNECTOR (WITH SENSOR BOARD)",
+      "ANTENNA SKU: 5A30Z88226": "ANTENNA",
+      "I/O BRACKET SKU: 5B40Z68875": "I/O BRACKET",
+      "CAMERA SKU: 5C21D10420": "CAMERA",
+      "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* CAMERA SKU: 5C21D10420-RECL": "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* CAMERA",
+      "HINGE SET (RIGHT & LEFT) SKU: 5H50W13826": "HINGE SET (RIGHT & LEFT)",
+      "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* HINGE SET (RIGHT & LEFT) SKU: 5H50W13826-RECL": "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* HINGE SET (RIGHT & LEFT)",
+      "DUMMY PEN CAP SKU: 5M21H89575": "DUMMY PEN CAP",
+      "SCREW SET SKU: 5S10Z89223": "SCREW SET",
+      "SPEAKER SET (RIGHT & LEFT) SKU: 5SB0Z88681": "SPEAKER SET (RIGHT & LEFT)",
+      "WLAN CARD SKU: 5W11H85391": "WLAN CARD",
+      "MOTHERBOARD 4GB SKU: 5B21L33482": "MOTHERBOARD 4GB",
+      "STRIP COVER SKU: 5B30Z38973": "STRIP COVER",
+      "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* STRIP COVER SKU: 5B30Z38973-RECL": "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* STRIP COVER",
+      "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* LCD TOP COVER SKU: 5CB1J18185-RECL": "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* LCD TOP COVER",
+      "LCD TOP COVER SKU: 5CB1J18185-WITHCABLE": "LCD TOP COVER",
+      "BOTTOM COVER SKU: 5CB1J18186": "BOTTOM COVER",
+      "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* BOTTOM COVER SKU: 5CB1J18186-RECL": "AG Recertified parts are fully functional. Part could include light to moderate blemishes. *RECERTIFIED* BOTTOM COVER",
+    },
   };
+
+  const modelAliases = {
+    "LENOVO 300E G4 YOGA": "300E G4 YOGA (TOUCH)",
+    "LENOVO 300E G4 YOGA TOUCH": "300E G4 YOGA (TOUCH)",
+    "LENOVO 300E G4 YOGA (TOUCH)": "300E G4 YOGA (TOUCH)",
+    "300E G4 YOGA": "300E G4 YOGA (TOUCH)",
+    "300E G4 YOGA TOUCH": "300E G4 YOGA (TOUCH)",
+    "300E G4 YOGA (TOUCH)": "300E G4 YOGA (TOUCH)",
+  };
+
+  function normalizeModelNumber(modelNumber) {
+    if (!modelNumber) return '';
+    const cleaned = String(modelNumber)
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toUpperCase();
+
+    if (chromebookParts[cleaned]) return cleaned;
+    return modelAliases[cleaned] || modelNumber;
+  }
+
 
   // =======================
   // Page integrations
@@ -411,7 +471,7 @@
   function showOrderPartsModal() {
     const descriptionContent = getDescriptionBoxContent();
     const { modelNumber } = parseDescriptionContent(descriptionContent);
-    let selectedModel = modelNumber;
+    let selectedModel = normalizeModelNumber(modelNumber);
 
     // Overlay
     const overlay = document.createElement('div');
@@ -431,7 +491,7 @@
 
     // Title
     const title = document.createElement('h3');
-    title.textContent = `Order Parts for Model: ${modelNumber || 'Unknown'}`;
+    title.textContent = `Order Parts for Model: ${selectedModel || modelNumber || 'Unknown'}`;
     modal.appendChild(title);
 
     // Model select (only shown if unknown)
@@ -606,7 +666,7 @@
     const currentDate = new Date().toLocaleDateString();
 
     const equipmentType = 'Chromebook';
-    const finalModel = selectedModel || modelNumber;
+    const finalModel = normalizeModelNumber(selectedModel || modelNumber);
 
     // your deployed web app URL
     const base = 'https://script.google.com/a/macros/dinuba.k12.ca.us/s/AKfycbxuIyq5s0vAgqiFoZFw_sa_grEmZztTuJr94_3P5ZQFaAGUaYTpqrBF6r_hXwHA5pPv-A/exec';
@@ -665,7 +725,7 @@
     if (!descriptionContent) return {};
     const districtTagMatch = descriptionContent.match(/District Tag:\s*([\w-]+)/i);
     const serialNumberMatch = descriptionContent.match(/Serial #:\s*([\w-]+)/i);
-    const modelNumberMatch = descriptionContent.match(/Model Number:\s*([\w-]+)/i);
+    const modelNumberMatch = descriptionContent.match(/Model Number:\s*([^\r\n]+)/i);
 
     const districtTag = districtTagMatch ? districtTagMatch[1].trim() : 'Unknown';
     const serialNumber = serialNumberMatch ? serialNumberMatch[1].trim() : 'Unknown';

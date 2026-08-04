@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Log Help Desk Call
 // @namespace    http://tampermonkey.net/
-// @version      1.2.3
+// @version      1.2.4
 // @description  Adds the "Log Call" button and submits the log form to SchoolDude.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -433,6 +433,7 @@
     const map = {
       'Adult School': 'Adult School Queue',
       'Dinuba High School': 'Dinuba HS Queue',
+      'Dinuba Intermediate School': 'Dinuba Intermediate Queue',
       'Dinuba Vocational Center': 'Dinuba Vocational Center',
       'District Office': 'District Office Queue',
       'Grand View Elementary': 'Grand View Queue',
@@ -880,6 +881,7 @@
             <option value="">Select...</option>
             <option>Adult School</option>
             <option>Dinuba High School</option>
+            <option>Dinuba Intermediate School</option>
             <option>Dinuba Vocational Center</option>
             <option>District Office</option>
             <option>Grand View Elementary</option>

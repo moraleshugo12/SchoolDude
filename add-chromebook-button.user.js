@@ -148,6 +148,7 @@
 
   var schools = [
     'Dinuba High School',
+    'Dinuba Intermediate',
     'Grand view Elementary',
     'Kennedy Elementary',
     'Roosevelt Elementary',

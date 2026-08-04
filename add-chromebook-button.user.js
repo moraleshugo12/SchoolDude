@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Chromebooks Button with Submission Process
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.6.1
 // @description  Adds the "Add Chromebooks" button and starts the submission process when clicked on SchoolDude pages.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -148,7 +148,7 @@
 
   var schools = [
     'Dinuba High School',
-    'Dinuba Intermediate',
+    'Dinuba Intermediate School',
     'Grand view Elementary',
     'Kennedy Elementary',
     'Roosevelt Elementary',
@@ -876,9 +876,6 @@ if (closeButton) {
 
   // Function to find and select the location in the dropdown based on the first word of the school name
   function selectLocationBySchool(selectedSchool) {
-    // Step 1: Extract the first word from the selectedSchool name
-    const firstWord = selectedSchool.split(' ')[0];
-
     // Step 2: Locate the "Location" dropdown menu trigger
     const locationDropdownTrigger = document.getElementsByClassName('x-form-trigger-arrow')[5]; // Adjust to the correct index
     if (!locationDropdownTrigger) {
@@ -906,9 +903,19 @@ if (closeButton) {
       }
 
       // Step 5: Find the matching option based on the first word
-      const matchingOption = dropdownOptions.find(option =>
-        option.getAttribute('qtip').trim().toLowerCase().startsWith(firstWord.toLowerCase())
-      );
+      const matchingOption = dropdownOptions.find(option => {
+  const optionName = option.getAttribute('qtip').trim().toLowerCase();
+
+  if (selectedSchool === 'Dinuba Intermediate School') {
+    return optionName.includes('dinuba intermediate');
+  }
+
+  if (selectedSchool === 'Dinuba High School') {
+    return optionName.includes('dinuba high');
+  }
+
+  return optionName.startsWith(selectedSchool.split(' ')[0].toLowerCase());
+});
 
       if (matchingOption) {
         // Step 6: Select the matching option
@@ -929,9 +936,6 @@ if (closeButton) {
 
   // Function to find and select the work queue in the dropdown based on the first word of the school name
   function selectWorkQueueBySchool(selectedSchool) {
-    // Step 1: Extract the first word from the selectedSchool name
-    const firstWord = selectedSchool.split(' ')[0];
-
     // Step 2: Locate the "Work Queue" dropdown menu trigger
     const workQueueDropdownTrigger = document.getElementsByClassName('x-form-trigger-arrow')[3]; // Adjust to the correct index
     if (!workQueueDropdownTrigger) {
@@ -959,9 +963,19 @@ if (closeButton) {
       }
 
       // Step 5: Find the matching option based on the first word
-      const matchingOption = dropdownOptions.find(option =>
-        option.getAttribute('qtip').trim().toLowerCase().startsWith(firstWord.toLowerCase())
-      );
+      const matchingOption = dropdownOptions.find(option => {
+        const optionName = option.getAttribute('qtip').trim().toLowerCase();
+
+        if (selectedSchool === 'Dinuba Intermediate School') {
+          return optionName.includes('dinuba intermediate');
+        }
+
+        if (selectedSchool === 'Dinuba High School') {
+          return optionName.includes('dinuba high');
+        }
+
+        return optionName.startsWith(selectedSchool.split(' ')[0].toLowerCase());
+      });
 
       if (matchingOption) {
         // Step 6: Select the matching option

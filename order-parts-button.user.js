@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Order Parts Button (Styled)
 // @namespace    http://tampermonkey.net/
-// @version      1.8.1
+// @version      1.8.2
 // @description  Adds an "Order Parts" button and a modern modal for part selection; handles Apps Script auth + autoclose.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -669,7 +669,7 @@
     const finalModel = normalizeModelNumber(selectedModel || modelNumber);
 
     // your deployed web app URL
-    const base = 'https://script.google.com/a/macros/dinuba.k12.ca.us/s/AKfycbxuIyq5s0vAgqiFoZFw_sa_grEmZztTuJr94_3P5ZQFaAGUaYTpqrBF6r_hXwHA5pPv-A/exec';
+    const base = 'https://script.google.com/a/macros/dinuba.k12.ca.us/s/AKfycbytMOuBuGsrftzDbFTH7AveOzU_alqne1u_ppMI7VpgL5pDePLe---tIboA7uqjV_cD/exec';
 
     const params = new URLSearchParams({
       equipmentType,
@@ -683,7 +683,7 @@
       submissionDate: currentDate
     });
 
-    const alreadyAuthorized = localStorage.getItem('partsWebAppAuthorized') === 'true';
+    const alreadyAuthorized = localStorage.getItem('partsWebAppAuthorized_v2') === 'true';
     if (alreadyAuthorized) params.set('autoClose', '1');
 
     const url = `${base}?${params.toString()}`;
@@ -709,7 +709,7 @@
       showModal(instructions, function () {});
       document.getElementById('partsAuthContinue')?.addEventListener('click', () => {
         document.querySelector('.modal-background')?.remove();
-        localStorage.setItem('partsWebAppAuthorized', 'true');
+        localStorage.setItem('partsWebAppAuthorized_v2', 'true');
         if (callback) callback(true);
       });
       document.getElementById('partsAuthCancel')?.addEventListener('click', () => {

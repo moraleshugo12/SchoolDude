@@ -1087,7 +1087,8 @@
     };
 
     const map4 = {
-      'YX0B': 'Lenovo 300e Yoga'
+      'YX0B': 'Lenovo 300e Yoga',
+      'YXN0': 'Lenovo 300e Yoga'
     };
 
     return (

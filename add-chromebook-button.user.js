@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Add Chromebooks Button with Submission Process
 // @namespace    http://tampermonkey.net/
-// @version      1.7.1
-// @description  Adds a professional Chromebook intake workflow and automates SchoolDude ticket submission.
+// @version      1.8.3
+// @description  Professional Chromebook intake workflow and automated SchoolDude ticket submission.
 // @author       You
 // @match        *://*.schooldude.com/*
 // @grant        none
@@ -15,137 +15,9 @@
   let addBtnScheduled = false;
   let addBtnInserted = false;
 
-  function createAddChromebooksButton() {
-    const table = document.createElement('table');
-    table.setAttribute('cellspacing', '0');
-    table.setAttribute('role', 'presentation');
-    table.id = 'AddChromebooksButton';
-    table.className = 'x-btn x-component x-btn-noicon x-unselectable';
-    table.style.cssText = 'margin-right: 5px; margin-left: 10px;';
-    table.unselectable = 'on';
+  let submissionInProgress = false;
 
-    const tbody = document.createElement('tbody');
-    tbody.className = 'x-btn-small x-btn-icon-small-left';
-
-    const topRow = document.createElement('tr');
-    topRow.innerHTML = `
-      <td class="x-btn-tl"><i>&nbsp;</i></td>
-      <td class="x-btn-tc"></td>
-      <td class="x-btn-tr"><i>&nbsp;</i></td>
-    `;
-
-    const middleRow = document.createElement('tr');
-    middleRow.innerHTML = `
-      <td class="x-btn-ml"><i>&nbsp;</i></td>
-      <td class="x-btn-mc">
-        <em class="" unselectable="on">
-          <button class="x-btn-text" type="button"
-            style="position: relative; width: 150px;" tabindex="0">
-            Add Chromebooks
-          </button>
-        </em>
-      </td>
-      <td class="x-btn-mr"><i>&nbsp;</i></td>
-    `;
-
-    const bottomRow = document.createElement('tr');
-    bottomRow.innerHTML = `
-      <td class="x-btn-bl"><i>&nbsp;</i></td>
-      <td class="x-btn-bc"></td>
-      <td class="x-btn-br"><i>&nbsp;</i></td>
-    `;
-
-    tbody.appendChild(topRow);
-    tbody.appendChild(middleRow);
-    tbody.appendChild(bottomRow);
-    table.appendChild(tbody);
-
-    table.addEventListener('click', () => {
-      console.log('"Add Chromebooks" button clicked!');
-      injectChromebookSubmissionLogic();
-    });
-
-    return table;
-  }
-
-  function addButtonToSpecificFooter() {
-    if (addBtnInserted) return;
-
-    const footers = document.querySelectorAll('.x-panel-footer');
-
-    for (const footer of footers) {
-      const personalizationsButton =
-        footer.querySelector('button#Personalizations');
-
-      if (!personalizationsButton) continue;
-
-      if (!footer.querySelector('#AddChromebooksButton')) {
-        const toolbar = footer.querySelector('.x-toolbar-left-row');
-        if (!toolbar) continue;
-
-        const addChromebooksButton = createAddChromebooksButton();
-
-        const addChromebooksCell = document.createElement('td');
-        addChromebooksCell.className = 'x-toolbar-cell';
-        addChromebooksCell.appendChild(addChromebooksButton);
-
-        toolbar.appendChild(addChromebooksCell);
-
-        console.log('"Add Chromebooks" button added.');
-
-        addBtnInserted = true;
-        if (observer) observer.disconnect();
-        break;
-      } else {
-        addBtnInserted = true;
-        if (observer) observer.disconnect();
-        break;
-      }
-    }
-  }
-
-  const observer = new MutationObserver(() => {
-    if (addBtnInserted) {
-      observer.disconnect();
-      return;
-    }
-
-    if (addBtnScheduled) return;
-
-    addBtnScheduled = true;
-
-    setTimeout(() => {
-      addBtnScheduled = false;
-      addButtonToSpecificFooter();
-    }, 100);
-  });
-
-  window.addEventListener('load', () => {
-    addButtonToSpecificFooter();
-
-    if (!addBtnInserted) {
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-    }
-  });
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-
-  window.addEventListener('load', addButtonToSpecificFooter);
-
-  function injectChromebookSubmissionLogic() {
-    console.log('Starting the Chromebook submission process...');
-    startProcess();
-  }
-
-  var submissionInProgress = false;
-
-  var schools = [
+  const schools = [
     'Dinuba High School',
     'Dinuba Intermediate School',
     'Grand view Elementary',
@@ -155,57 +27,334 @@
     'Lincoln Elementary',
     'Washington Intermediate',
     'Sierra Vista',
-    'Jefferson Elementary',
+    'Jefferson Elementary'
   ];
 
-  var selectedSchool = '';
-  var selectedTechnician = '';
-  var chromebooks = [];
-  var chromebookCount = 0;
+  let selectedSchool = '';
+  let selectedTechnician = '';
+  let chromebooks = [];
+  let chromebookCount = 0;
 
-  function showModal(content, callback) {
+  /* =========================================================
+     ADD CHROMEBOOK BUTTON
+     ========================================================= */
+
+  function createAddChromebooksButton() {
+    const table = document.createElement('table');
+
+    table.setAttribute('cellspacing', '0');
+    table.setAttribute('role', 'presentation');
+
+    table.id = 'AddChromebooksButton';
+    table.className = 'x-btn x-component x-btn-noicon x-unselectable';
+
+    table.style.cssText =
+      'margin-right:5px;margin-left:10px;';
+
+    table.unselectable = 'on';
+
+    const tbody = document.createElement('tbody');
+
+    tbody.className =
+      'x-btn-small x-btn-icon-small-left';
+
+    const topRow = document.createElement('tr');
+
+    topRow.innerHTML = `
+      <td class="x-btn-tl"><i>&nbsp;</i></td>
+      <td class="x-btn-tc"></td>
+      <td class="x-btn-tr"><i>&nbsp;</i></td>
+    `;
+
+    const middleRow =
+      document.createElement('tr');
+
+    middleRow.innerHTML = `
+      <td class="x-btn-ml"><i>&nbsp;</i></td>
+
+      <td class="x-btn-mc">
+        <em unselectable="on">
+
+          <button
+            class="x-btn-text"
+            type="button"
+            style="position:relative;width:150px;"
+            tabindex="0"
+          >
+            Add Chromebooks
+          </button>
+
+        </em>
+      </td>
+
+      <td class="x-btn-mr"><i>&nbsp;</i></td>
+    `;
+
+    const bottomRow =
+      document.createElement('tr');
+
+    bottomRow.innerHTML = `
+      <td class="x-btn-bl"><i>&nbsp;</i></td>
+      <td class="x-btn-bc"></td>
+      <td class="x-btn-br"><i>&nbsp;</i></td>
+    `;
+
+    tbody.appendChild(topRow);
+    tbody.appendChild(middleRow);
+    tbody.appendChild(bottomRow);
+
+    table.appendChild(tbody);
+
+    table.addEventListener('click', () => {
+      console.log(
+        '"Add Chromebooks" button clicked!'
+      );
+
+      injectChromebookSubmissionLogic();
+    });
+
+    return table;
+  }
+
+  function addButtonToSpecificFooter() {
+    if (addBtnInserted) return;
+
+    const footers =
+      document.querySelectorAll(
+        '.x-panel-footer'
+      );
+
+    for (const footer of footers) {
+      const personalizationsButton =
+        footer.querySelector(
+          'button#Personalizations'
+        );
+
+      if (!personalizationsButton) {
+        continue;
+      }
+
+      if (
+        !footer.querySelector(
+          '#AddChromebooksButton'
+        )
+      ) {
+        const toolbar =
+          footer.querySelector(
+            '.x-toolbar-left-row'
+          );
+
+        if (!toolbar) continue;
+
+        const addChromebooksButton =
+          createAddChromebooksButton();
+
+        const addChromebooksCell =
+          document.createElement('td');
+
+        addChromebooksCell.className =
+          'x-toolbar-cell';
+
+        addChromebooksCell.appendChild(
+          addChromebooksButton
+        );
+
+        toolbar.appendChild(
+          addChromebooksCell
+        );
+
+        console.log(
+          '"Add Chromebooks" button added.'
+        );
+
+        addBtnInserted = true;
+
+        if (observer) {
+          observer.disconnect();
+        }
+
+        break;
+      }
+
+      addBtnInserted = true;
+
+      if (observer) {
+        observer.disconnect();
+      }
+
+      break;
+    }
+  }
+
+  const observer =
+    new MutationObserver(() => {
+      if (addBtnInserted) {
+        observer.disconnect();
+        return;
+      }
+
+      if (addBtnScheduled) {
+        return;
+      }
+
+      addBtnScheduled = true;
+
+      setTimeout(() => {
+        addBtnScheduled = false;
+
+        addButtonToSpecificFooter();
+      }, 100);
+    });
+
+  window.addEventListener(
+    'load',
+    () => {
+      addButtonToSpecificFooter();
+
+      if (!addBtnInserted) {
+        observer.observe(
+          document.body,
+          {
+            childList: true,
+            subtree: true
+          }
+        );
+      }
+    }
+  );
+
+  if (document.body) {
+    observer.observe(
+      document.body,
+      {
+        childList: true,
+        subtree: true
+      }
+    );
+  }
+
+  function injectChromebookSubmissionLogic() {
+    console.log(
+      'Starting Chromebook submission process...'
+    );
+
+    startProcess();
+  }
+
+  /* =========================================================
+     MODAL SYSTEM
+     ========================================================= */
+
+  function removeExistingModal() {
     document
-      .querySelectorAll('.sd-modal-background')
-      .forEach(el => el.remove());
+      .querySelectorAll(
+        '.sd-modal-background'
+      )
+      .forEach(element => {
+        element.remove();
+      });
 
-    const modalBackground = document.createElement('div');
-    modalBackground.className = 'modal-background sd-modal-background';
+    document.body.classList.remove(
+      'sd-modal-open'
+    );
+  }
 
-    const modal = document.createElement('div');
-    modal.className = 'modal sd-modal';
+  function showModal(
+    content,
+    callback = function () {}
+  ) {
+    removeExistingModal();
 
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
+    const modalBackground =
+      document.createElement('div');
+
+    modalBackground.className =
+      'modal-background sd-modal-background';
+
+    const modal =
+      document.createElement('div');
+
+    modal.className =
+      'modal sd-modal';
+
+    modal.setAttribute(
+      'role',
+      'dialog'
+    );
+
+    modal.setAttribute(
+      'aria-modal',
+      'true'
+    );
 
     modal.innerHTML = `
       <div class="sd-modal-accent"></div>
+
       <div class="modal-content">
         ${content}
       </div>
     `;
 
-    ['click', 'mousedown', 'mouseup'].forEach(evt => {
-      modal.addEventListener(evt, function (e) {
-        e.stopPropagation();
-      });
+    [
+      'click',
+      'mousedown',
+      'mouseup'
+    ].forEach(eventName => {
+      modal.addEventListener(
+        eventName,
+        function (event) {
+          event.stopPropagation();
+        }
+      );
     });
 
-    modalBackground.appendChild(modal);
-    document.body.appendChild(modalBackground);
-    document.body.classList.add('sd-modal-open');
+    modalBackground.appendChild(
+      modal
+    );
+
+    document.body.appendChild(
+      modalBackground
+    );
+
+    document.body.classList.add(
+      'sd-modal-open'
+    );
 
     requestAnimationFrame(() => {
-      modalBackground.classList.add('is-visible');
-      modal.classList.add('is-visible');
+      modalBackground.classList.add(
+        'is-visible'
+      );
+
+      modal.classList.add(
+        'is-visible'
+      );
     });
 
-    const closeModal = (reload = false) => {
-      modalBackground.classList.remove('is-visible');
-      modal.classList.remove('is-visible');
-      document.body.classList.remove('sd-modal-open');
+    let isClosing = false;
+
+    const closeModal = (
+      reload = false
+    ) => {
+      if (isClosing) return;
+
+      isClosing = true;
+
+      modalBackground.classList.remove(
+        'is-visible'
+      );
+
+      modal.classList.remove(
+        'is-visible'
+      );
+
+      document.body.classList.remove(
+        'sd-modal-open'
+      );
 
       setTimeout(() => {
-        if (modalBackground.parentNode) {
+        if (
+          modalBackground.parentNode
+        ) {
           modalBackground.remove();
         }
 
@@ -215,70 +364,53 @@
       }, 170);
     };
 
-    modalBackground.addEventListener('click', function (event) {
-      if (event.target === modalBackground) {
-        closeModal(true);
-      }
-    });
-
-    const escHandler = function (event) {
-      if (event.key === 'Escape') {
-        document.removeEventListener('keydown', escHandler);
-        closeModal(true);
-      }
-    };
-
-    document.addEventListener('keydown', escHandler);
-
-    modal.addEventListener('keydown', function (event) {
-      if (event.key !== 'Enter') return;
-
-      if (event.target && event.target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      const active = document.activeElement;
-      let valueToSubmit = null;
-
-      if (
-        active &&
-        modal.contains(active) &&
-        (
-          active.tagName === 'INPUT' ||
-          active.tagName === 'SELECT'
-        )
-      ) {
-        valueToSubmit = active.value;
-      } else {
-        const firstInput =
-          modal.querySelector('input:not([readonly])');
-
-        const firstSelect =
-          modal.querySelector('select');
-
-        if (firstInput) {
-          valueToSubmit = firstInput.value;
-        } else if (firstSelect) {
-          valueToSubmit = firstSelect.value;
+    modalBackground.addEventListener(
+      'click',
+      function (event) {
+        if (
+          event.target ===
+          modalBackground
+        ) {
+          closeModal(true);
         }
       }
+    );
 
-      if (valueToSubmit !== null) {
-        event.preventDefault();
+    const escHandler =
+      function (event) {
+        if (
+          event.key === 'Escape'
+        ) {
+          document.removeEventListener(
+            'keydown',
+            escHandler
+          );
 
-        callback(valueToSubmit);
+          closeModal(true);
+        }
+      };
 
-        document.removeEventListener('keydown', escHandler);
+    document.addEventListener(
+      'keydown',
+      escHandler
+    );
 
-        closeModal(false);
-      }
-    });
+    const cleanupKeyboard = () => {
+      document.removeEventListener(
+        'keydown',
+        escHandler
+      );
+    };
 
     const firstInput =
-      modal.querySelector('input:not([readonly])');
+      modal.querySelector(
+        'input:not([readonly])'
+      );
 
     const firstSelect =
-      modal.querySelector('select');
+      modal.querySelector(
+        'select'
+      );
 
     setTimeout(() => {
       if (firstInput) {
@@ -288,1409 +420,155 @@
       }
     }, 80);
 
+    modal.addEventListener(
+      'keydown',
+      function (event) {
+        if (
+          event.key !== 'Enter'
+        ) {
+          return;
+        }
+
+        if (
+          event.target &&
+          event.target.tagName ===
+          'TEXTAREA'
+        ) {
+          return;
+        }
+
+        if (
+          modal.querySelector(
+            '.review-modal-body'
+          )
+        ) {
+          return;
+        }
+
+        const nextButton =
+          modal.querySelector(
+            '#nextButton'
+          );
+
+        if (!nextButton) {
+          return;
+        }
+
+        event.preventDefault();
+
+        nextButton.click();
+      }
+    );
+
     const nextButton =
-      modal.querySelector('#nextButton');
-
-    if (nextButton) {
-      nextButton.addEventListener('click', function (e) {
-        e.stopPropagation();
-
-        const input =
-          modal.querySelector('input:not([readonly])');
-
-        const select =
-          modal.querySelector('select');
-
-        if (input) {
-          callback(input.value);
-        } else if (select) {
-          callback(select.value);
-        } else {
-          callback();
-        }
-
-        document.removeEventListener('keydown', escHandler);
-
-        closeModal(false);
-      });
-    }
-
-    const doneButton =
-      modal.querySelector('#doneButton');
-
-    if (doneButton) {
-      doneButton.addEventListener('click', function (e) {
-        e.stopPropagation();
-
-        document.removeEventListener('keydown', escHandler);
-
-        closeModal(false);
-
-        setTimeout(displayCollectedInfo, 180);
-      });
-    }
-
-    const closeButton =
-      modal.querySelector('#closeButton');
-
-    if (closeButton) {
-      closeButton.addEventListener('click', function (e) {
-        e.stopPropagation();
-
-        document.removeEventListener('keydown', escHandler);
-
-        closeModal(true);
-      });
-    }
-  }
-
-  function extractTechnicianName() {
-    const email = extractLoggedInUserEmail();
-    if (!email) return null;
-
-    const user = email.split('@')[0];
-    const firstChunk = user.split('.')[0];
-
-    return firstChunk;
-  }
-
-  function startProcess() {
-    const extractedTechnicianName =
-      extractTechnicianName();
-
-    if (extractedTechnicianName) {
-      selectedTechnician =
-        extractedTechnicianName;
-
-      console.log(
-        `Technician assigned: ${selectedTechnician}`
-      );
-    } else {
-      console.error(
-        'No technician extracted. Defaulting to "Unknown Technician".'
-      );
-
-      selectedTechnician =
-        'Unknown Technician';
-    }
-
-    var schoolOptions =
-      schools
-        .map(
-          school =>
-            `<option value="${school}">${school}</option>`
-        )
-        .join('');
-
-    showModal(
-      `
-      <div class="modal-body">
-
-        <button
-          id="closeButton"
-          class="modal-button sd-icon-button"
-          aria-label="Close"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-          >
-            <path
-              d="M6 6L18 18M6 18L18 6"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-
-        <div class="sd-kicker">
-          CHROMEBOOK INTAKE
-        </div>
-
-        <h2>
-          Start a new submission
-        </h2>
-
-        <p class="sd-subtitle">
-          Choose the campus for these devices.
-          Your technician account was detected automatically.
-        </p>
-
-        <div class="sd-field-group">
-
-          <label for="school">
-            School / Site
-          </label>
-
-          <div class="sd-input-shell">
-
-            <span class="sd-input-icon">
-              ⌂
-            </span>
-
-            <select
-              id="school"
-              class="modal-select"
-            >
-              ${schoolOptions}
-            </select>
-
-          </div>
-
-        </div>
-
-        <div class="sd-field-group">
-
-          <label for="technician">
-            Technician
-          </label>
-
-          <div class="sd-input-shell is-readonly">
-
-            <span class="sd-input-icon">
-              ●
-            </span>
-
-            <input
-              id="technician"
-              class="modal-input"
-              value="${selectedTechnician}"
-              readonly
-            />
-
-          </div>
-
-          <div class="sd-helper">
-            Detected from your SchoolDude login
-          </div>
-
-        </div>
-
-        <div class="button-container sd-actions">
-
-          <button
-            id="nextButton"
-            class="modal-button sd-primary"
-          >
-            Continue
-            <span aria-hidden="true">
-              →
-            </span>
-          </button>
-
-        </div>
-
-      </div>
-      `,
-      function () {
-        selectedSchool =
-          document
-            .getElementById('school')
-            .value;
-
-        selectedTechnician =
-          document
-            .getElementById('technician')
-            .value;
-
-        promptDistrictTag();
-      }
-    );
-  }
-
-  function promptDistrictTag(
-    errorMessage = ''
-  ) {
-    var doneButtonHtml =
-      chromebookCount >= 1
-        ? `
-          <button
-            id="doneButton"
-            class="modal-button"
-          >
-            Done
-          </button>
-        `
-        : '';
-
-    var modalHtml = `
-      <div class="modal-body">
-
-        <button
-          id="closeButton"
-          class="modal-button sd-icon-button"
-          aria-label="Close"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-          >
-            <path
-              d="M6 6L18 18M6 18L18 6"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-
-        <div class="sd-kicker">
-          DEVICE ${chromebookCount + 1}
-        </div>
-
-        <h2>
-          Scan district tag
-        </h2>
-
-        <p class="sd-subtitle">
-          Scan or enter the district asset tag
-          for the Chromebook.
-        </p>
-
-        ${
-          errorMessage
-            ? `
-              <div
-                id="errorMessage"
-                class="error-message"
-              >
-                ${errorMessage}
-              </div>
-            `
-            : ''
-        }
-
-        <div class="sd-field-group">
-
-          <label for="districtTag">
-            District Tag
-          </label>
-
-          <input
-            type="text"
-            id="districtTag"
-            class="modal-input"
-            placeholder="Example: 01234567"
-            autocomplete="off"
-          />
-
-          <div class="sd-helper">
-            District tags must begin with 0.
-          </div>
-
-        </div>
-
-        <div class="button-container">
-
-          ${doneButtonHtml}
-
-          <button
-            id="nextButton"
-            class="modal-button sd-primary"
-          >
-            Continue →
-          </button>
-
-        </div>
-
-      </div>
-    `;
-
-    showModal(
-      modalHtml,
-      function (districtTag) {
-        if (
-          districtTag.trim() === ''
-        ) {
-          districtTag = 'N/A';
-
-        } else if (
-          districtTag.startsWith('0') &&
-          districtTag.length < 9
-        ) {
-          promptSerialNumber(
-            districtTag
-          );
-
-          return;
-
-        } else {
-          return promptDistrictTag(
-            'District Tag must start with a "0" and be less than 9 characters.'
-          );
-        }
-
-        promptSerialNumber(
-          districtTag
-        );
-      }
-    );
-  }
-
-  function promptSerialNumber(
-    districtTag,
-    errorMessage = ''
-  ) {
-    const errorMessageHtml =
-      errorMessage
-        ? `
-          <div
-            id="errorMessage"
-            class="error-message"
-          >
-            ${errorMessage}
-          </div>
-        `
-        : '';
-
-    showModal(
-      `
-      <div class="modal-body">
-
-        <div class="sd-kicker">
-          DEVICE ${chromebookCount + 1}
-        </div>
-
-        <h2>
-          Scan serial number
-        </h2>
-
-        <p class="sd-subtitle">
-          Scan or enter the Chromebook serial
-          number. Leave it blank to skip.
-        </p>
-
-        ${errorMessageHtml}
-
-        <div class="sd-field-group">
-
-          <label for="serialNumber">
-            Serial Number
-          </label>
-
-          <input
-            type="text"
-            id="serialNumber"
-            class="modal-input"
-            placeholder="Scan or enter serial number"
-            autocomplete="off"
-          />
-
-          <div class="sd-helper">
-            Supported serial numbers normally
-            begin with N, M, or Y.
-          </div>
-
-        </div>
-
-        <div class="button-container">
-
-          <button
-            id="nextButton"
-            class="modal-button sd-primary"
-          >
-            Continue →
-          </button>
-
-        </div>
-
-      </div>
-      `,
-      function (serialInput) {
-        if (
-          serialInput.trim() === ''
-        ) {
-          console.log(
-            '[Serial] blank -> N/A, moving to model prompt'
-          );
-
-          promptModelNumber(
-            districtTag,
-            'N/A'
-          );
-
-          return;
-        }
-
-        let cleaned =
-          String(serialInput)
-            .trim();
-
-        try {
-          const u =
-            new URL(cleaned);
-
-          cleaned =
-            u.pathname
-              .split('/')
-              .filter(Boolean)
-              .pop() ||
-            cleaned;
-
-        } catch (_) {
-          const parts =
-            cleaned.split('/');
-
-          cleaned =
-            parts[
-              parts.length - 1
-            ];
-        }
-
-        cleaned =
-          cleaned
-            .split('?')[0]
-            .split('#')[0];
-
-        cleaned =
-          cleaned
-            .replace(
-              /[^A-Za-z0-9]/g,
-              ''
-            )
-            .toUpperCase();
-
-        console.log(
-          '[Serial] cleaned:',
-          cleaned
-        );
-
-        if (
-          /^[NMY]/.test(cleaned)
-        ) {
-          console.log(
-            '[Serial] accepted -> next prompt'
-          );
-
-          promptModelNumber(
-            districtTag,
-            cleaned
-          );
-
-        } else {
-          console.warn(
-            '[Serial] invalid prefix -> re-prompt'
-          );
-
-          promptSerialNumber(
-            districtTag,
-            'Serial number must start with N, M, or Y.'
-          );
-        }
-      }
-    );
-  }
-
-  function determineModelNumber(serialNumber) {
-    if (!serialNumber) return '';
-
-    const serial =
-      serialNumber.toUpperCase();
-
-    const prefix5 =
-      serial.substring(0, 5);
-
-    const map5 = {
-      'NXHPW': 'R752T',
-      'NXGPZ': 'R751T',
-      'NXA8Z': 'R753T',
-      'NXH8V': 'C733',
-      'NXH8Y': 'C851',
-      'M2NXY': 'C204M',
-      'M1NXV': 'C204M',
-      'M2NXC': 'C204M'
-    };
-
-    /*
-     * NEW RULE:
-     * ANY SERIAL STARTING WITH YX
-     * IS A LENOVO 300E YOGA
-     */
-    if (
-      serial.startsWith('YX')
-    ) {
-      return 'Lenovo 300e Yoga';
-    }
-
-    return (
-      map5[prefix5] ||
-      ''
-    );
-  }
-
-  function promptModelNumber(
-    districtTag,
-    serialNumber
-  ) {
-    const autoSelectedModel =
-      determineModelNumber(
-        serialNumber
-      );
-
-    if (
-      autoSelectedModel
-    ) {
-      chromebooks.push({
-        districtTag,
-        serialNumber,
-        modelNumber:
-          autoSelectedModel
-      });
-
-      chromebookCount++;
-
-      promptDistrictTag();
-
-    } else {
-      showModal(
-        `
-        <div class="modal-body">
-
-          <div class="sd-kicker">
-            DEVICE ${chromebookCount + 1}
-          </div>
-
-          <h2>
-            Enter model
-          </h2>
-
-          <p class="sd-subtitle">
-            This serial number did not match
-            one of the models currently stored
-            in the automatic lookup table.
-          </p>
-
-          <div class="sd-field-group">
-
-            <label for="modelNumber">
-              Model Number
-            </label>
-
-            <input
-              type="text"
-              id="modelNumber"
-              class="modal-input"
-              placeholder="Type model number"
-              autocomplete="off"
-            />
-
-          </div>
-
-          <div class="button-container">
-
-            <button
-              id="nextButton"
-              class="modal-button sd-primary"
-            >
-              Add Device →
-            </button>
-
-          </div>
-
-        </div>
-        `,
-        function (modelNumber) {
-          if (
-            modelNumber.trim() === ''
-          ) {
-            promptModelNumber(
-              districtTag,
-              serialNumber
-            );
-
-          } else {
-            chromebooks.push({
-              districtTag,
-              serialNumber,
-              modelNumber:
-                modelNumber.trim()
-            });
-
-            chromebookCount++;
-
-            promptDistrictTag();
-          }
-        }
-      );
-    }
-  }
-
-  function displayCollectedInfo() {
-    if (
-      chromebookCount === 0
-    ) {
-      alert(
-        'No Chromebooks To Submit.'
-      );
-
-      return;
-    }
-
-    var info = `
-      <div class="modal-body review-modal-body">
-
-        <button
-          id="closeButton"
-          class="modal-button sd-icon-button"
-        >
-          ✕
-        </button>
-
-        <div class="sd-kicker">
-          REVIEW SUBMISSION
-        </div>
-
-        <h2>
-          Review Chromebooks
-        </h2>
-
-        <p class="sd-subtitle">
-          Confirm the device information below
-          before SchoolDude tickets are created.
-        </p>
-
-        <div class="sd-summary-grid">
-
-          <div class="sd-summary-card">
-
-            <span>
-              School
-            </span>
-
-            <strong>
-              ${selectedSchool}
-            </strong>
-
-          </div>
-
-          <div class="sd-summary-card">
-
-            <span>
-              Technician
-            </span>
-
-            <strong>
-              ${selectedTechnician}
-            </strong>
-
-          </div>
-
-          <div class="sd-summary-card">
-
-            <span>
-              Devices
-            </span>
-
-            <strong>
-              ${chromebookCount}
-            </strong>
-
-          </div>
-
-        </div>
-
-        <ul>
-
-          ${
-            chromebooks
-              .map(
-                (
-                  chromebook,
-                  index
-                ) => `
-                  <li
-                    class="chromebook-item"
-                  >
-
-                    <div
-                      class="button-group"
-                    >
-
-                      <button
-                        class="edit-button"
-                        data-index="${index}"
-                        title="Edit"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          width="17"
-                          height="17"
-                          fill="currentColor"
-                        >
-                          <path
-                            d="M3 21v-3.586l11.293-11.293 3.586 3.586L6.586 21H3z"
-                          />
-                          <path
-                            d="M18.207 7.293l-1.5-1.5 2.5-2.5a1 1 0 0 1 1.414 0l1.086 1.086a1 1 0 0 1 0 1.414l-2.5 2.5-1.5-1.5z"
-                          />
-                        </svg>
-                      </button>
-
-                      <button
-                        class="delete-button"
-                        data-index="${index}"
-                        title="Delete"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          width="16"
-                          height="16"
-                          fill="currentColor"
-                        >
-                          <path
-                            d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM16.5 4l-1-1h-7l-1 1H5v2h14V4h-2.5z"
-                          />
-                        </svg>
-                      </button>
-
-                    </div>
-
-                    <div class="sd-device-number">
-                      DEVICE ${index + 1}
-                    </div>
-
-                    <strong>
-                      District Tag:
-                    </strong>
-                    ${chromebook.districtTag}
-
-                    <br>
-
-                    <strong>
-                      Serial #:
-                    </strong>
-                    ${chromebook.serialNumber}
-
-                    <br>
-
-                    <strong>
-                      Model:
-                    </strong>
-                    ${chromebook.modelNumber}
-
-                  </li>
-                `
-              )
-              .join('')
-          }
-
-        </ul>
-
-        <div class="button-container review-action-bar">
-
-          <div class="review-device-count">
-            ${chromebookCount}
-            ${
-              chromebookCount === 1
-                ? 'device'
-                : 'devices'
-            }
-            ready
-          </div>
-
-          <div class="review-action-buttons">
-
-            <button
-              id="addButton"
-              class="modal-button"
-            >
-              + Add More
-            </button>
-
-            <button
-              id="nextButton"
-              class="modal-button sd-primary"
-            >
-              Submit Tickets →
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-    `;
-
-    showModal(
-      info,
-      function () {}
-    );
-
-    document
-      .getElementById('addButton')
-      .addEventListener(
-        'click',
-        function () {
-          const modal =
-            document.querySelector(
-              'div.modal'
-            );
-
-          if (
-            modal &&
-            modal.parentNode
-          ) {
-            modal.parentNode
-              .removeChild(modal);
-          }
-
-          const modalBackground =
-            document.querySelector(
-              '.modal-background'
-            );
-
-          if (
-            modalBackground
-          ) {
-            modalBackground
-              .parentNode
-              .removeChild(
-                modalBackground
-              );
-          }
-
-          promptDistrictTag();
-        }
-      );
-
-    document
-      .getElementById('closeButton')
-      .addEventListener(
-        'click',
-        function () {
-          const modal =
-            document.querySelector(
-              'div.modal'
-            );
-
-          if (
-            modal &&
-            modal.parentNode
-          ) {
-            modal.parentNode
-              .removeChild(modal);
-          }
-
-          const modalBackground =
-            document.querySelector(
-              '.modal-background'
-            );
-
-          if (
-            modalBackground
-          ) {
-            modalBackground
-              .parentNode
-              .removeChild(
-                modalBackground
-              );
-          }
-        }
-      );
-
-    var nextButton =
-      document.getElementById(
-        'nextButton'
+      modal.querySelector(
+        '#nextButton'
       );
 
     if (nextButton) {
       nextButton.addEventListener(
         'click',
-        function () {
-          openNewTicketPage();
+        function (event) {
+          event.stopPropagation();
+
+          const input =
+            modal.querySelector(
+              'input:not([readonly])'
+            );
+
+          const select =
+            modal.querySelector(
+              'select'
+            );
+
+          let value;
+
+          /*
+           * IMPORTANT:
+           * If a dropdown exists, use the dropdown
+           * value first. This fixes the school value.
+           */
+          if (select) {
+            value = select.value;
+          } else if (input) {
+            value = input.value;
+          }
+
+          cleanupKeyboard();
+
+          closeModal(false);
+
+          setTimeout(() => {
+            callback(value);
+          }, 180);
         }
       );
     }
 
-    document
-      .querySelectorAll(
-        '.edit-button'
-      )
-      .forEach(
-        button => {
-          button.addEventListener(
-            'click',
-            function () {
-              const index =
-                this.getAttribute(
-                  'data-index'
-                );
-
-              const modalBackground =
-                document.querySelector(
-                  '.modal-background'
-                );
-
-              if (
-                modalBackground
-              ) {
-                modalBackground
-                  .parentNode
-                  .removeChild(
-                    modalBackground
-                  );
-              }
-
-              editChromebook(
-                index
-              );
-            }
-          );
-        }
+    const doneButton =
+      modal.querySelector(
+        '#doneButton'
       );
 
-    document
-      .querySelectorAll(
-        '.delete-button'
-      )
-      .forEach(
-        button => {
-          button.addEventListener(
-            'click',
-            function () {
-              const index =
-                this.getAttribute(
-                  'data-index'
-                );
-
-              const modalBackground =
-                document.querySelector(
-                  '.modal-background'
-                );
-
-              if (
-                modalBackground
-              ) {
-                modalBackground
-                  .parentNode
-                  .removeChild(
-                    modalBackground
-                  );
-              }
-
-              deleteChromebook(
-                index
-              );
-            }
-          );
-        }
-      );
-  }
-
-  function editChromebook(index) {
-    const chromebook =
-      chromebooks[index];
-
-    var existingModal =
-      document.querySelector(
-        'div.modal'
-      );
-
-    if (
-      existingModal &&
-      existingModal.parentNode
-    ) {
-      existingModal.parentNode
-        .removeChild(
-          existingModal
-        );
-    }
-
-    const editModalContent = `
-      <div class="modal-body">
-
-        <div class="sd-kicker">
-          EDIT DEVICE
-        </div>
-
-        <h2>
-          Edit Chromebook
-        </h2>
-
-        <p class="sd-subtitle">
-          Update any of the device information
-          below before submission.
-        </p>
-
-        <div class="sd-field-group">
-
-          <label for="districtTag">
-            District Tag
-          </label>
-
-          <input
-            type="text"
-            id="districtTag"
-            value="${chromebook.districtTag}"
-            class="modal-input"
-          />
-
-        </div>
-
-        <div class="sd-field-group">
-
-          <label for="serialNumber">
-            Serial Number
-          </label>
-
-          <input
-            type="text"
-            id="serialNumber"
-            value="${chromebook.serialNumber}"
-            class="modal-input"
-          />
-
-        </div>
-
-        <div class="sd-field-group">
-
-          <label for="modelNumber">
-            Model Number
-          </label>
-
-          <input
-            type="text"
-            id="modelNumber"
-            value="${chromebook.modelNumber}"
-            class="modal-input"
-          />
-
-        </div>
-
-        <div class="button-container">
-
-          <button
-            id="cancelButton"
-            class="modal-button"
-          >
-            Cancel
-          </button>
-
-          <button
-            id="saveButton"
-            class="modal-button sd-primary"
-          >
-            Save Changes
-          </button>
-
-        </div>
-
-      </div>
-    `;
-
-    showModal(
-      editModalContent,
-      function () {}
-    );
-
-    document
-      .getElementById(
-        'saveButton'
-      )
-      .addEventListener(
+    if (doneButton) {
+      doneButton.addEventListener(
         'click',
-        function () {
-          const updatedDistrictTag =
-            document
-              .getElementById(
-                'districtTag'
-              )
-              .value;
+        function (event) {
+          event.stopPropagation();
 
-          const updatedSerialNumber =
-            document
-              .getElementById(
-                'serialNumber'
-              )
-              .value;
+          cleanupKeyboard();
 
-          const updatedModelNumber =
-            document
-              .getElementById(
-                'modelNumber'
-              )
-              .value;
+          closeModal(false);
 
-          chromebooks[index] = {
-            districtTag:
-              updatedDistrictTag,
-
-            serialNumber:
-              updatedSerialNumber,
-
-            modelNumber:
-              updatedModelNumber
-          };
-
-          var modalBackground =
-            document.querySelector(
-              '.modal-background'
-            );
-
-          if (
-            modalBackground
-          ) {
-            modalBackground
-              .parentNode
-              .removeChild(
-                modalBackground
-              );
-          }
-
-          var modal =
-            document.querySelector(
-              'div.modal'
-            );
-
-          if (
-            modal &&
-            modal.parentNode
-          ) {
-            modal.parentNode
-              .removeChild(modal);
-          }
-
-          displayCollectedInfo();
-        }
-      );
-
-    document
-      .getElementById(
-        'cancelButton'
-      )
-      .addEventListener(
-        'click',
-        function () {
-          var modalBackground =
-            document.querySelector(
-              '.modal-background'
-            );
-
-          if (
-            modalBackground
-          ) {
-            modalBackground.remove();
-          }
-
-          displayCollectedInfo();
-        }
-      );
-  }
-
-  function deleteChromebook(index) {
-    const confirmDelete =
-      confirm(
-        'Are you sure you want to delete this Chromebook?'
-      );
-
-    if (
-      confirmDelete
-    ) {
-      chromebooks.splice(
-        index,
-        1
-      );
-
-      chromebookCount--;
-
-      var modalBackground =
-        document.querySelector(
-          '.modal-background'
-        );
-
-      if (
-        modalBackground
-      ) {
-        modalBackground
-          .parentNode
-          .removeChild(
-            modalBackground
+          setTimeout(
+            displayCollectedInfo,
+            180
           );
-      }
-
-      displayCollectedInfo();
+        }
+      );
     }
-  }
 
-  function openNewTicketPage() {
-    var button =
-      document.querySelector(
-        'button#New'
+    const closeButton =
+      modal.querySelector(
+        '#closeButton'
       );
 
-    if (button) {
-      button.click();
+    if (closeButton) {
+      closeButton.addEventListener(
+        'click',
+        function (event) {
+          event.stopPropagation();
+
+          cleanupKeyboard();
+
+          closeModal(true);
+        }
+      );
     }
 
-    setTimeout(
-      function () {
-        submitChromebooks(
-          0,
-          selectedSchool
-        );
-      },
-      1000
-    );
+    return {
+      modal,
+      modalBackground,
+      closeModal
+    };
   }
 
-  function submitChromebooks(
-    index,
-    selectedSchool
-  ) {
-    if (
-      submissionInProgress
-    ) {
-      return;
-    }
+  /* =========================================================
+     TECHNICIAN DETECTION
+     ========================================================= */
 
-    const loggedInUserEmail =
+  function extractTechnicianName() {
+    const email =
       extractLoggedInUserEmail();
 
-    console.log(
-      loggedInUserEmail
-    );
-
-    if (
-      !loggedInUserEmail
-    ) {
-      console.error(
-        'Failed to extract logged-in user email. Aborting submission.'
-      );
-
-      return;
+    if (!email) {
+      return null;
     }
 
-    if (
-      index <
-      chromebooks.length
-    ) {
-      submissionInProgress =
-        true;
+    const user =
+      email.split('@')[0];
 
-      showOverlay(
-        `Submitting Chromebook ${index + 1} of ${chromebooks.length}`
-      );
-
-      var chromebookData =
-        chromebooks[index];
-
-      console.log(
-        chromebookData
-      );
-
-      fillOutFormFields(
-        chromebookData,
-        loggedInUserEmail,
-        selectedSchool,
-        function () {
-          console.log(
-            'Form fields filled for Chromebook ' +
-            (index + 1)
-          );
-
-          submitForm(
-            index,
-            function () {
-              console.log(
-                'Form submitted for Chromebook ' +
-                (index + 1)
-              );
-
-              if (
-                index + 1 <
-                chromebooks.length
-              ) {
-                setTimeout(
-                  function () {
-                    openNewTicketPage();
-
-                    setTimeout(
-                      function () {
-                        submissionInProgress =
-                          false;
-
-                        submitChromebooks(
-                          index + 1,
-                          selectedSchool
-                        );
-                      },
-                      1000
-                    );
-                  },
-                  500
-                );
-
-              } else {
-                console.log(
-                  'All Chromebooks submitted. Showing final summary.'
-                );
-
-                displaySummary();
-
-                hideOverlay();
-
-                submissionInProgress =
-                  false;
-              }
-            }
-          );
-        }
-      );
-    }
-  }
-
-  function showOverlay(message) {
-    hideOverlay();
-
-    var overlay =
-      document.createElement(
-        'div'
-      );
-
-    overlay.className =
-      'overlay';
-
-    overlay.innerHTML = `
-      <div class="overlay-message">
-
-        <div class="sd-overlay-kicker">
-          SCHOOLDUDE AUTOMATION
-        </div>
-
-        ${message}
-
-        <div class="sd-overlay-helper">
-          Please keep this window open while
-          your tickets are created.
-        </div>
-
-      </div>
-    `;
-
-    document.body.appendChild(
-      overlay
-    );
-  }
-
-  function hideOverlay() {
-    var overlay =
-      document.querySelector(
-        '.overlay'
-      );
-
-    if (overlay) {
-      document.body.removeChild(
-        overlay
-      );
-    }
+    return user.split('.')[0];
   }
 
   function extractLoggedInUserEmail() {
@@ -1727,156 +605,1435 @@
     return match[0];
   }
 
-  function fillOutFormFields(
-    chromebookData,
-    loggedInUserEmail,
-    selectedSchool,
-    callback
+  /* =========================================================
+     START WORKFLOW
+     ========================================================= */
+
+  function startProcess() {
+    const extractedTechnicianName =
+      extractTechnicianName();
+
+    if (extractedTechnicianName) {
+      selectedTechnician =
+        extractedTechnicianName;
+    } else {
+      selectedTechnician =
+        'Unknown Technician';
+    }
+
+    const schoolOptions =
+      schools
+        .map(
+          school =>
+            `<option value="${school}">${school}</option>`
+        )
+        .join('');
+
+    showModal(
+      `
+      <div class="modal-body">
+
+        <button
+          id="closeButton"
+          class="modal-button sd-icon-button"
+          type="button"
+          aria-label="Close"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+          >
+            <path
+              d="M6 6L18 18M18 6L6 18"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+
+        <div class="sd-kicker">
+          CHROMEBOOK INTAKE
+        </div>
+
+        <h2>
+          Start a new submission
+        </h2>
+
+        <p class="sd-subtitle">
+          Choose the campus for these devices.
+          Your technician account was detected automatically.
+        </p>
+
+        <div class="sd-field-group">
+
+          <label for="school">
+            School / Site
+          </label>
+
+          <div class="sd-input-shell">
+
+            <span class="sd-input-icon">
+              ◉
+            </span>
+
+            <select
+              id="school"
+              class="modal-select"
+            >
+              ${schoolOptions}
+            </select>
+
+          </div>
+
+          <div class="sd-helper">
+            Tickets will automatically be routed to this site.
+          </div>
+
+        </div>
+
+        <div class="sd-field-group">
+
+          <label for="technician">
+            Technician
+          </label>
+
+          <div class="sd-input-shell is-readonly">
+
+            <span class="sd-input-icon">
+              ●
+            </span>
+
+            <input
+              id="technician"
+              class="modal-input"
+              value="${selectedTechnician}"
+              readonly
+            />
+
+          </div>
+
+          <div class="sd-helper">
+            Automatically detected from your SchoolDude login.
+          </div>
+
+        </div>
+
+        <div class="button-container">
+
+          <button
+            id="nextButton"
+            class="modal-button sd-primary"
+            type="button"
+          >
+            Continue
+            <span>→</span>
+          </button>
+
+        </div>
+
+      </div>
+      `,
+      function (schoolValue) {
+
+        /*
+         * FIX:
+         * Use the school value captured BEFORE
+         * the modal closes.
+         */
+        selectedSchool =
+          String(
+            schoolValue || ''
+          ).trim();
+
+        console.log(
+          'Selected School:',
+          selectedSchool
+        );
+
+        console.log(
+          'Selected Technician:',
+          selectedTechnician
+        );
+
+        promptDistrictTag();
+      }
+    );
+  }
+
+  /* =========================================================
+     DISTRICT TAG
+     ========================================================= */
+
+  function promptDistrictTag(
+    errorMessage = ''
   ) {
+    const doneButtonHtml =
+      chromebookCount >= 1
+        ? `
+          <button
+            id="doneButton"
+            class="modal-button sd-secondary-dark"
+            type="button"
+          >
+            Review Devices
+          </button>
+        `
+        : '';
+
+    showModal(
+      `
+      <div class="modal-body">
+
+        <button
+          id="closeButton"
+          class="modal-button sd-icon-button"
+          type="button"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+
+        <div class="sd-kicker">
+          DEVICE ${chromebookCount + 1}
+        </div>
+
+        <h2>
+          Scan district tag
+        </h2>
+
+        <p class="sd-subtitle">
+          Scan or enter the district asset tag
+          for the next Chromebook.
+        </p>
+
+        ${
+          errorMessage
+            ? `
+              <div class="error-message">
+                ${errorMessage}
+              </div>
+            `
+            : ''
+        }
+
+        <div class="sd-field-group">
+
+          <label for="districtTag">
+            District Tag
+          </label>
+
+          <input
+            type="text"
+            id="districtTag"
+            class="modal-input"
+            placeholder="Example: 01234567"
+            autocomplete="off"
+          />
+
+          <div class="sd-helper">
+            District tags must begin with 0.
+          </div>
+
+        </div>
+
+        ${
+          chromebookCount > 0
+            ? `
+            <div class="sd-current-count">
+              <strong>${chromebookCount}</strong>
+              ${
+                chromebookCount === 1
+                  ? 'Chromebook'
+                  : 'Chromebooks'
+              }
+              currently added
+            </div>
+            `
+            : ''
+        }
+
+        <div class="button-container">
+
+          ${doneButtonHtml}
+
+          <button
+            id="nextButton"
+            class="modal-button sd-primary"
+            type="button"
+          >
+            Continue →
+          </button>
+
+        </div>
+
+      </div>
+      `,
+      function (districtTag) {
+        districtTag =
+          String(
+            districtTag || ''
+          ).trim();
+
+        if (
+          districtTag === ''
+        ) {
+          districtTag = 'N/A';
+
+          promptSerialNumber(
+            districtTag
+          );
+
+          return;
+        }
+
+        if (
+          districtTag.startsWith('0') &&
+          districtTag.length < 9
+        ) {
+          promptSerialNumber(
+            districtTag
+          );
+
+          return;
+        }
+
+        promptDistrictTag(
+          'District Tag must start with "0" and contain fewer than 9 characters.'
+        );
+      }
+    );
+  }
+
+  /* =========================================================
+     SERIAL
+     ========================================================= */
+
+  function promptSerialNumber(
+    districtTag,
+    errorMessage = ''
+  ) {
+    showModal(
+      `
+      <div class="modal-body">
+
+        <div class="sd-kicker">
+          DEVICE ${chromebookCount + 1}
+        </div>
+
+        <h2>
+          Scan serial number
+        </h2>
+
+        <p class="sd-subtitle">
+          Scan or enter the Chromebook serial number.
+          Leave it blank if a serial number is unavailable.
+        </p>
+
+        ${
+          errorMessage
+            ? `
+              <div class="error-message">
+                ${errorMessage}
+              </div>
+            `
+            : ''
+        }
+
+        <div class="sd-field-group">
+
+          <label for="serialNumber">
+            Serial Number
+          </label>
+
+          <input
+            type="text"
+            id="serialNumber"
+            class="modal-input"
+            placeholder="Scan or enter serial number"
+            autocomplete="off"
+          />
+
+          <div class="sd-helper">
+            Supported serials normally begin with N, M, or Y.
+          </div>
+
+        </div>
+
+        <div class="button-container">
+
+          <button
+            id="nextButton"
+            class="modal-button sd-primary"
+            type="button"
+          >
+            Continue →
+          </button>
+
+        </div>
+
+      </div>
+      `,
+      function (serialInput) {
+        if (
+          String(serialInput || '')
+            .trim() === ''
+        ) {
+          promptModelNumber(
+            districtTag,
+            'N/A'
+          );
+
+          return;
+        }
+
+        let cleaned =
+          String(serialInput)
+            .trim();
+
+        try {
+          const url =
+            new URL(cleaned);
+
+          cleaned =
+            url.pathname
+              .split('/')
+              .filter(Boolean)
+              .pop() ||
+            cleaned;
+        } catch (_) {
+          const parts =
+            cleaned.split('/');
+
+          cleaned =
+            parts[
+              parts.length - 1
+            ];
+        }
+
+        cleaned =
+          cleaned
+            .split('?')[0]
+            .split('#')[0];
+
+        cleaned =
+          cleaned
+            .replace(
+              /[^A-Za-z0-9]/g,
+              ''
+            )
+            .toUpperCase();
+
+        console.log(
+          '[Serial] cleaned:',
+          cleaned
+        );
+
+        if (
+          /^[NMY]/.test(cleaned)
+        ) {
+          promptModelNumber(
+            districtTag,
+            cleaned
+          );
+        } else {
+          promptSerialNumber(
+            districtTag,
+            'Serial number must begin with N, M, or Y.'
+          );
+        }
+      }
+    );
+  }
+
+  /* =========================================================
+     MODEL DETECTION
+     ========================================================= */
+
+  function determineModelNumber(
+    serialNumber
+  ) {
+    if (!serialNumber) {
+      return '';
+    }
+
+    const serial =
+      String(serialNumber)
+        .toUpperCase();
+
+    /*
+     * ANY SERIAL STARTING WITH YX
+     */
     if (
-      !chromebookData ||
-      !loggedInUserEmail ||
-      !selectedSchool
+      serial.startsWith('YX')
     ) {
-      console.error(
-        'Missing required parameters for filling out the form.'
+      return 'Lenovo 300e Yoga';
+    }
+
+    const prefix5 =
+      serial.substring(
+        0,
+        5
+      );
+
+    const map5 = {
+      NXHPW: 'R752T',
+      NXGPZ: 'R751T',
+      NXA8Z: 'R753T',
+      NXH8V: 'C733',
+      NXH8Y: 'C851',
+      M2NXY: 'C204M',
+      M1NXV: 'C204M',
+      M2NXC: 'C204M'
+    };
+
+    return (
+      map5[prefix5] ||
+      ''
+    );
+  }
+
+  function promptModelNumber(
+    districtTag,
+    serialNumber
+  ) {
+    const autoSelectedModel =
+      determineModelNumber(
+        serialNumber
+      );
+
+    if (
+      autoSelectedModel
+    ) {
+      chromebooks.push({
+        districtTag,
+        serialNumber,
+        modelNumber:
+          autoSelectedModel
+      });
+
+      chromebookCount =
+        chromebooks.length;
+
+      promptDistrictTag();
+
+      return;
+    }
+
+    showModal(
+      `
+      <div class="modal-body">
+
+        <div class="sd-kicker">
+          DEVICE ${chromebookCount + 1}
+        </div>
+
+        <h2>
+          Enter model
+        </h2>
+
+        <p class="sd-subtitle">
+          This serial number did not match a model
+          in the automatic lookup table.
+        </p>
+
+        <div class="sd-field-group">
+
+          <label for="modelNumber">
+            Model Number
+          </label>
+
+          <input
+            type="text"
+            id="modelNumber"
+            class="modal-input"
+            placeholder="Type model number"
+            autocomplete="off"
+          />
+
+        </div>
+
+        <div class="button-container">
+
+          <button
+            id="nextButton"
+            class="modal-button sd-primary"
+            type="button"
+          >
+            Add Device →
+          </button>
+
+        </div>
+
+      </div>
+      `,
+      function (modelNumber) {
+        modelNumber =
+          String(
+            modelNumber || ''
+          ).trim();
+
+        if (
+          modelNumber === ''
+        ) {
+          promptModelNumber(
+            districtTag,
+            serialNumber
+          );
+
+          return;
+        }
+
+        chromebooks.push({
+          districtTag,
+          serialNumber,
+          modelNumber
+        });
+
+        chromebookCount =
+          chromebooks.length;
+
+        promptDistrictTag();
+      }
+    );
+  }
+
+  /* =========================================================
+     REVIEW SCREEN
+     ========================================================= */
+
+  function displayCollectedInfo() {
+    chromebookCount =
+      chromebooks.length;
+
+    if (
+      chromebookCount === 0
+    ) {
+      alert(
+        'No Chromebooks To Submit.'
       );
 
       return;
     }
 
-    function executeStepsSequentially(
-      stepIndex
-    ) {
-      const steps = [
+    console.log(
+      'Review School:',
+      selectedSchool
+    );
 
-        () => {
-          console.log(
-            'Selecting "Assigned To" user...'
-          );
+    console.log(
+      'Review Technician:',
+      selectedTechnician
+    );
 
-          selectAssignedToUser();
+    const info = `
+      <div class="modal-body review-modal-body">
 
-          setTimeout(
-            () =>
-              executeStepsSequentially(
-                stepIndex + 1
-              ),
-            500
-          );
-        },
+        <div class="review-header-section">
 
-        () => {
-          console.log(
-            'Selecting "Location" based on school...'
-          );
+          <button
+            id="closeButton"
+            class="modal-button sd-icon-button"
+            type="button"
+          >
+            ✕
+          </button>
 
-          selectLocationBySchool(
-            selectedSchool
-          );
+          <div class="sd-kicker">
+            REVIEW SUBMISSION
+          </div>
 
-          setTimeout(
-            () =>
-              executeStepsSequentially(
-                stepIndex + 1
-              ),
-            500
-          );
-        },
+          <h2>
+            Review Chromebooks
+          </h2>
 
-        () => {
-          console.log(
-            'Selecting "Work Queue" based on school...'
-          );
+          <p class="sd-subtitle">
+            Confirm the device information before
+            SchoolDude tickets are created.
+          </p>
 
-          selectWorkQueueBySchool(
-            selectedSchool
-          );
+          <div class="sd-summary-grid">
 
-          setTimeout(
-            () =>
-              executeStepsSequentially(
-                stepIndex + 1
-              ),
-            500
-          );
-        },
+            <div class="sd-summary-card">
 
-        () => {
-          console.log(
-            'Selecting "Chromebook" as work type...'
-          );
+              <span>
+                School
+              </span>
 
-          selectWorkTypeAsChromebook();
+              <strong>
+                ${selectedSchool || 'Not Selected'}
+              </strong>
 
-          setTimeout(
-            () =>
-              executeStepsSequentially(
-                stepIndex + 1
-              ),
-            500
-          );
-        },
+            </div>
 
-        () => {
-          console.log(
-            'Filling out the text area with Chromebook data...'
-          );
+            <div class="sd-summary-card">
 
-          const textareaElement =
-            document.getElementById(
-              'base_inc_incident_description'
-            );
+              <span>
+                Technician
+              </span>
 
-          if (
-            !textareaElement
-          ) {
-            console.error(
-              'Text area for description not found.'
-            );
+              <strong>
+                ${selectedTechnician || 'Unknown'}
+              </strong>
 
-            return;
-          }
+            </div>
 
-          const desiredValue =
-            `District Tag: ${chromebookData.districtTag} || \n` +
-            `Serial #: ${chromebookData.serialNumber} || \n` +
-            `Model Number: ${chromebookData.modelNumber}`;
+            <div class="sd-summary-card">
 
-          triggerTextareaInput(
-            textareaElement,
-            desiredValue
-          );
+              <span>
+                Devices
+              </span>
 
-          console.log(
-            'Chromebook data entered:',
-            desiredValue
-          );
+              <strong>
+                ${chromebookCount}
+              </strong>
 
-          if (
-            typeof callback ===
-            'function'
-          ) {
-            callback();
-          }
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="review-list-wrapper">
+
+          <ul class="review-device-list">
+
+            ${
+              chromebooks
+                .map(
+                  (
+                    chromebook,
+                    index
+                  ) => `
+                  <li class="chromebook-item">
+
+                    <div class="button-group">
+
+                      <button
+                        class="edit-button"
+                        data-index="${index}"
+                        type="button"
+                        title="Edit"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="17"
+                          height="17"
+                          fill="currentColor"
+                        >
+                          <path
+                            d="M3 21v-3.586l11.293-11.293 3.586 3.586L6.586 21H3z"
+                          />
+                          <path
+                            d="M18.207 7.293l-1.5-1.5 2.5-2.5a1 1 0 0 1 1.414 0l1.086 1.086a1 1 0 0 1 0 1.414l-2.5 2.5-1.5-1.5z"
+                          />
+                        </svg>
+                      </button>
+
+                      <button
+                        class="delete-button"
+                        data-index="${index}"
+                        type="button"
+                        title="Delete"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                        >
+                          <path
+                            d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM16.5 4l-1-1h-7l-1 1H5v2h14V4h-2.5z"
+                          />
+                        </svg>
+                      </button>
+
+                    </div>
+
+                    <div class="sd-device-number">
+                      DEVICE ${index + 1}
+                    </div>
+
+                    <div class="device-detail-row">
+                      <span>
+                        District Tag
+                      </span>
+
+                      <strong>
+                        ${chromebook.districtTag}
+                      </strong>
+                    </div>
+
+                    <div class="device-detail-row">
+                      <span>
+                        Serial #
+                      </span>
+
+                      <strong>
+                        ${chromebook.serialNumber}
+                      </strong>
+                    </div>
+
+                    <div class="device-detail-row">
+                      <span>
+                        Model
+                      </span>
+
+                      <strong>
+                        ${chromebook.modelNumber}
+                      </strong>
+                    </div>
+
+                  </li>
+                `
+                )
+                .join('')
+            }
+
+          </ul>
+
+        </div>
+
+        <div class="review-action-bar">
+
+          <div class="review-device-count">
+
+            <strong>
+              ${chromebookCount}
+            </strong>
+
+            ${
+              chromebookCount === 1
+                ? 'device ready'
+                : 'devices ready'
+            }
+
+          </div>
+
+          <div class="review-action-buttons">
+
+            <button
+              id="addButton"
+              class="modal-button"
+              type="button"
+            >
+              + Add More
+            </button>
+
+            <button
+              id="reviewSubmitButton"
+              class="modal-button sd-primary"
+              type="button"
+            >
+              Submit Tickets →
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+    `;
+
+    showModal(
+      info,
+      function () {}
+    );
+
+    const addButton =
+      document.getElementById(
+        'addButton'
+      );
+
+    if (addButton) {
+      addButton.addEventListener(
+        'click',
+        function () {
+          removeExistingModal();
+
+          promptDistrictTag();
         }
-
-      ];
-
-      if (
-        stepIndex <
-        steps.length
-      ) {
-        steps[
-          stepIndex
-        ]();
-      }
+      );
     }
 
-    executeStepsSequentially(
-      0
+    const submitButton =
+      document.getElementById(
+        'reviewSubmitButton'
+      );
+
+    if (submitButton) {
+      submitButton.addEventListener(
+        'click',
+        function () {
+          removeExistingModal();
+
+          openNewTicketPage();
+        }
+      );
+    }
+
+    document
+      .querySelectorAll(
+        '.edit-button'
+      )
+      .forEach(button => {
+        button.addEventListener(
+          'click',
+          function () {
+            const index =
+              Number(
+                this.getAttribute(
+                  'data-index'
+                )
+              );
+
+            removeExistingModal();
+
+            editChromebook(
+              index
+            );
+          }
+        );
+      });
+
+    document
+      .querySelectorAll(
+        '.delete-button'
+      )
+      .forEach(button => {
+        button.addEventListener(
+          'click',
+          function () {
+            const index =
+              Number(
+                this.getAttribute(
+                  'data-index'
+                )
+              );
+
+            deleteChromebook(
+              index
+            );
+          }
+        );
+      });
+  }
+
+  /* =========================================================
+     EDIT
+     ========================================================= */
+
+  function editChromebook(
+    index
+  ) {
+    const chromebook =
+      chromebooks[index];
+
+    if (!chromebook) {
+      return;
+    }
+
+    showModal(
+      `
+      <div class="modal-body">
+
+        <div class="sd-kicker">
+          EDIT DEVICE
+        </div>
+
+        <h2>
+          Edit Chromebook
+        </h2>
+
+        <p class="sd-subtitle">
+          Update the device information below.
+        </p>
+
+        <div class="sd-field-group">
+
+          <label for="editDistrictTag">
+            District Tag
+          </label>
+
+          <input
+            type="text"
+            id="editDistrictTag"
+            value="${chromebook.districtTag}"
+            class="modal-input"
+          />
+
+        </div>
+
+        <div class="sd-field-group">
+
+          <label for="editSerialNumber">
+            Serial Number
+          </label>
+
+          <input
+            type="text"
+            id="editSerialNumber"
+            value="${chromebook.serialNumber}"
+            class="modal-input"
+          />
+
+        </div>
+
+        <div class="sd-field-group">
+
+          <label for="editModelNumber">
+            Model Number
+          </label>
+
+          <input
+            type="text"
+            id="editModelNumber"
+            value="${chromebook.modelNumber}"
+            class="modal-input"
+          />
+
+        </div>
+
+        <div class="button-container">
+
+          <button
+            id="cancelEditButton"
+            class="modal-button"
+            type="button"
+          >
+            Cancel
+          </button>
+
+          <button
+            id="saveEditButton"
+            class="modal-button sd-primary"
+            type="button"
+          >
+            Save Changes
+          </button>
+
+        </div>
+
+      </div>
+      `,
+      function () {}
+    );
+
+    const saveButton =
+      document.getElementById(
+        'saveEditButton'
+      );
+
+    if (saveButton) {
+      saveButton.addEventListener(
+        'click',
+        function () {
+          const updatedDistrictTag =
+            document
+              .getElementById(
+                'editDistrictTag'
+              )
+              .value
+              .trim();
+
+          const updatedSerialNumber =
+            document
+              .getElementById(
+                'editSerialNumber'
+              )
+              .value
+              .trim();
+
+          const updatedModelNumber =
+            document
+              .getElementById(
+                'editModelNumber'
+              )
+              .value
+              .trim();
+
+          chromebooks[index] = {
+            districtTag:
+              updatedDistrictTag,
+
+            serialNumber:
+              updatedSerialNumber,
+
+            modelNumber:
+              updatedModelNumber
+          };
+
+          chromebookCount =
+            chromebooks.length;
+
+          removeExistingModal();
+
+          displayCollectedInfo();
+        }
+      );
+    }
+
+    const cancelButton =
+      document.getElementById(
+        'cancelEditButton'
+      );
+
+    if (cancelButton) {
+      cancelButton.addEventListener(
+        'click',
+        function () {
+          removeExistingModal();
+
+          displayCollectedInfo();
+        }
+      );
+    }
+  }
+
+  /* =========================================================
+     DELETE
+     ========================================================= */
+
+  function deleteChromebook(
+    index
+  ) {
+    const confirmDelete =
+      confirm(
+        'Are you sure you want to delete this Chromebook?'
+      );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    chromebooks.splice(
+      index,
+      1
+    );
+
+    chromebookCount =
+      chromebooks.length;
+
+    removeExistingModal();
+
+    if (
+      chromebookCount === 0
+    ) {
+      promptDistrictTag();
+
+      return;
+    }
+
+    displayCollectedInfo();
+  }
+
+  /* =========================================================
+     OPEN NEW TICKET
+     ========================================================= */
+
+  function openNewTicketPage() {
+    const button =
+      document.querySelector(
+        'button#New'
+      );
+
+    if (!button) {
+      console.error(
+        'New ticket button not found.'
+      );
+
+      alert(
+        'The SchoolDude "New" ticket button could not be found.'
+      );
+
+      return;
+    }
+
+    button.click();
+
+    setTimeout(() => {
+      submitChromebooks(
+        0,
+        selectedSchool
+      );
+    }, 1000);
+  }
+
+  /* =========================================================
+     SUBMIT CHROMEBOOKS
+     ========================================================= */
+
+  function submitChromebooks(
+    index,
+    school
+  ) {
+    if (
+      submissionInProgress
+    ) {
+      return;
+    }
+
+    const loggedInUserEmail =
+      extractLoggedInUserEmail();
+
+    if (
+      !loggedInUserEmail
+    ) {
+      console.error(
+        'Unable to determine logged-in email.'
+      );
+
+      return;
+    }
+
+    if (
+      index >=
+      chromebooks.length
+    ) {
+      return;
+    }
+
+    submissionInProgress =
+      true;
+
+    showOverlay(
+      `Submitting Chromebook ${index + 1} of ${chromebooks.length}`
+    );
+
+    const chromebookData =
+      chromebooks[index];
+
+    fillOutFormFields(
+      chromebookData,
+      loggedInUserEmail,
+      school,
+      function () {
+        submitForm(
+          index,
+          function () {
+            if (
+              index + 1 <
+              chromebooks.length
+            ) {
+              submissionInProgress =
+                false;
+
+              const newButton =
+                document.querySelector(
+                  'button#New'
+                );
+
+              if (newButton) {
+                newButton.click();
+              }
+
+              setTimeout(() => {
+                submitChromebooks(
+                  index + 1,
+                  school
+                );
+              }, 1200);
+
+            } else {
+              submissionInProgress =
+                false;
+
+              hideOverlay();
+
+              displaySummary();
+            }
+          }
+        );
+      }
     );
   }
+
+  /* =========================================================
+     SUBMISSION OVERLAY
+     ========================================================= */
+
+  function showOverlay(
+    message
+  ) {
+    hideOverlay();
+
+    const overlay =
+      document.createElement('div');
+
+    overlay.className =
+      'overlay';
+
+    overlay.innerHTML = `
+      <div class="overlay-message">
+
+        <div class="sd-spinner"></div>
+
+        <div class="sd-overlay-kicker">
+          SCHOOLDUDE AUTOMATION
+        </div>
+
+        <div class="sd-overlay-title">
+          ${message}
+        </div>
+
+        <div class="sd-overlay-helper">
+          Please keep this window open while
+          your tickets are being created.
+        </div>
+
+      </div>
+    `;
+
+    document.body.appendChild(
+      overlay
+    );
+  }
+
+  function hideOverlay() {
+    const overlay =
+      document.querySelector(
+        '.overlay'
+      );
+
+    if (overlay) {
+      overlay.remove();
+    }
+  }
+
+  /* =========================================================
+     FORM FILLING
+     ========================================================= */
+
+  function fillOutFormFields(
+    chromebookData,
+    loggedInUserEmail,
+    school,
+    callback
+  ) {
+    if (
+      !chromebookData ||
+      !loggedInUserEmail ||
+      !school
+    ) {
+      console.error(
+        'Missing required parameters.'
+      );
+
+      console.log({
+        chromebookData,
+        loggedInUserEmail,
+        school
+      });
+
+      return;
+    }
+
+    const steps = [
+      function (next) {
+        selectAssignedToUser();
+
+        setTimeout(
+          next,
+          500
+        );
+      },
+
+      function (next) {
+        selectLocationBySchool(
+          school
+        );
+
+        setTimeout(
+          next,
+          500
+        );
+      },
+
+      function (next) {
+        selectWorkQueueBySchool(
+          school
+        );
+
+        setTimeout(
+          next,
+          500
+        );
+      },
+
+      function (next) {
+        selectWorkTypeAsChromebook();
+
+        setTimeout(
+          next,
+          500
+        );
+      },
+
+      function (next) {
+        const textareaElement =
+          document.getElementById(
+            'base_inc_incident_description'
+          );
+
+        if (
+          !textareaElement
+        ) {
+          console.error(
+            'Description textarea not found.'
+          );
+
+          return;
+        }
+
+        const desiredValue =
+          `District Tag: ${chromebookData.districtTag} || \n` +
+          `Serial #: ${chromebookData.serialNumber} || \n` +
+          `Model Number: ${chromebookData.modelNumber}`;
+
+        triggerTextareaInput(
+          textareaElement,
+          desiredValue
+        );
+
+        next();
+      }
+    ];
+
+    let stepIndex = 0;
+
+    function runNextStep() {
+      if (
+        stepIndex >=
+        steps.length
+      ) {
+        if (
+          typeof callback ===
+          'function'
+        ) {
+          callback();
+        }
+
+        return;
+      }
+
+      const currentStep =
+        steps[stepIndex];
+
+      stepIndex++;
+
+      currentStep(
+        runNextStep
+      );
+    }
+
+    runNextStep();
+  }
+
+  /* =========================================================
+     ASSIGNED TO
+     ========================================================= */
 
   function selectAssignedToUser() {
     const loggedInUserEmail =
@@ -1888,543 +2045,353 @@
       return;
     }
 
-    const assignedToDropdownTrigger =
-      document
-        .getElementsByClassName(
-          'x-form-trigger-arrow'
-        )[2];
+    const triggers =
+      document.getElementsByClassName(
+        'x-form-trigger-arrow'
+      );
 
-    if (
-      !assignedToDropdownTrigger
-    ) {
+    const trigger =
+      triggers[2];
+
+    if (!trigger) {
       console.error(
-        '"Assigned To" dropdown trigger not found.'
+        '"Assigned To" trigger not found.'
       );
 
       return;
     }
 
-    assignedToDropdownTrigger.click();
+    trigger.click();
 
-    setTimeout(
-      () => {
-        const dropdownContainer =
-          document.getElementById(
-            'base_inc_incident_assigned_to-combo-list'
-          );
+    setTimeout(() => {
+      const dropdownContainer =
+        document.getElementById(
+          'base_inc_incident_assigned_to-combo-list'
+        );
 
-        if (
-          !dropdownContainer
-        ) {
-          console.error(
-            'Dropdown list container not found.'
-          );
+      if (
+        !dropdownContainer
+      ) {
+        console.error(
+          'Assigned To dropdown not found.'
+        );
 
-          return;
-        }
+        return;
+      }
 
-        const dropdownOptions =
-          Array.from(
-            dropdownContainer
-              .querySelectorAll(
-                '.x-combo-list-item span[qtip]'
-              )
-          );
+      const options =
+        Array.from(
+          dropdownContainer.querySelectorAll(
+            '.x-combo-list-item span[qtip]'
+          )
+        );
 
-        if (
-          dropdownOptions.length === 0
-        ) {
-          console.error(
-            'No options found in the "Assigned To" dropdown menu.'
-          );
-
-          return;
-        }
-
-        const matchingOption =
-          dropdownOptions.find(
-            option =>
-              option
-                .getAttribute(
-                  'qtip'
-                )
-                .trim()
-                .toLowerCase()
-                .includes(
-                  loggedInUserEmail
-                    .toLowerCase()
-                )
-          );
-
-        if (
-          matchingOption
-        ) {
-          const parentOption =
-            matchingOption.closest(
-              '.x-combo-list-item'
+      const matchingOption =
+        options.find(option => {
+          const qtip =
+            option.getAttribute(
+              'qtip'
             );
 
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mousedown',
-              {
-                bubbles: true
-              }
-            )
+          return (
+            qtip &&
+            qtip
+              .toLowerCase()
+              .includes(
+                loggedInUserEmail
+                  .toLowerCase()
+              )
           );
+        });
 
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mouseup',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'click',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          console.log(
-            `Selected: ${matchingOption.getAttribute('qtip')}`
-          );
-
-        } else {
-          console.warn(
-            `No matching option found for email: ${loggedInUserEmail}`
-          );
-        }
-      },
-      500
-    );
+      if (
+        matchingOption
+      ) {
+        clickComboOption(
+          matchingOption
+        );
+      }
+    }, 500);
   }
+
+  /* =========================================================
+     LOCATION
+     ========================================================= */
 
   function selectLocationBySchool(
-    selectedSchool
+    school
   ) {
-    const locationDropdownTrigger =
-      document
-        .getElementsByClassName(
-          'x-form-trigger-arrow'
-        )[5];
+    const triggers =
+      document.getElementsByClassName(
+        'x-form-trigger-arrow'
+      );
 
-    if (
-      !locationDropdownTrigger
-    ) {
+    const trigger =
+      triggers[5];
+
+    if (!trigger) {
       console.error(
-        '"Location" dropdown trigger not found.'
+        'Location trigger not found.'
       );
 
       return;
     }
 
-    locationDropdownTrigger.click();
+    trigger.click();
 
-    setTimeout(
-      () => {
-        const dropdownContainer =
-          document.getElementById(
-            'base_inc_incident_rte_location-combo-list'
-          );
+    setTimeout(() => {
+      const container =
+        document.getElementById(
+          'base_inc_incident_rte_location-combo-list'
+        );
 
-        if (
-          !dropdownContainer
-        ) {
-          console.error(
-            'Dropdown list container not found for "Location".'
-          );
+      if (!container) {
+        return;
+      }
 
-          return;
-        }
+      const options =
+        Array.from(
+          container.querySelectorAll(
+            '.x-combo-list-item span[qtip]'
+          )
+        );
 
-        const dropdownOptions =
-          Array.from(
-            dropdownContainer
-              .querySelectorAll(
-                '.x-combo-list-item span[qtip]'
-              )
-          );
+      const matchingOption =
+        findSchoolOption(
+          options,
+          school
+        );
 
-        if (
-          dropdownOptions.length === 0
-        ) {
-          console.error(
-            'No options found in the "Location" dropdown menu.'
-          );
-
-          return;
-        }
-
-        const matchingOption =
-          dropdownOptions.find(
-            option => {
-              const optionName =
-                option
-                  .getAttribute(
-                    'qtip'
-                  )
-                  .trim()
-                  .toLowerCase();
-
-              if (
-                selectedSchool ===
-                'Dinuba Intermediate School'
-              ) {
-                return optionName.includes(
-                  'dinuba intermediate'
-                );
-              }
-
-              if (
-                selectedSchool ===
-                'Dinuba High School'
-              ) {
-                return optionName.includes(
-                  'dinuba high'
-                );
-              }
-
-              return optionName.startsWith(
-                selectedSchool
-                  .split(' ')[0]
-                  .toLowerCase()
-              );
-            }
-          );
-
-        if (
+      if (
+        matchingOption
+      ) {
+        clickComboOption(
           matchingOption
-        ) {
-          const parentOption =
-            matchingOption.closest(
-              '.x-combo-list-item'
-            );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mousedown',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mouseup',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'click',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          console.log(
-            `Selected location: ${matchingOption.getAttribute('qtip')}`
-          );
-
-        } else {
-          console.warn(
-            `No matching location option found for the school: ${selectedSchool}`
-          );
-        }
-      },
-      500
-    );
+        );
+      }
+    }, 500);
   }
+
+  /* =========================================================
+     WORK QUEUE
+     ========================================================= */
 
   function selectWorkQueueBySchool(
-    selectedSchool
+    school
   ) {
-    const workQueueDropdownTrigger =
-      document
-        .getElementsByClassName(
-          'x-form-trigger-arrow'
-        )[3];
+    const triggers =
+      document.getElementsByClassName(
+        'x-form-trigger-arrow'
+      );
 
-    if (
-      !workQueueDropdownTrigger
-    ) {
+    const trigger =
+      triggers[3];
+
+    if (!trigger) {
       console.error(
-        '"Work Queue" dropdown trigger not found.'
+        'Work Queue trigger not found.'
       );
 
       return;
     }
 
-    workQueueDropdownTrigger.click();
+    trigger.click();
 
-    setTimeout(
-      () => {
-        const dropdownContainer =
-          document.getElementById(
-            'base_inc_incident_work_queue-combo-list'
-          );
+    setTimeout(() => {
+      const container =
+        document.getElementById(
+          'base_inc_incident_work_queue-combo-list'
+        );
 
-        if (
-          !dropdownContainer
-        ) {
-          console.error(
-            'Dropdown list container not found for "Work Queue".'
-          );
+      if (!container) {
+        return;
+      }
 
-          return;
-        }
+      const options =
+        Array.from(
+          container.querySelectorAll(
+            '.x-combo-list-item span[qtip]'
+          )
+        );
 
-        const dropdownOptions =
-          Array.from(
-            dropdownContainer
-              .querySelectorAll(
-                '.x-combo-list-item span[qtip]'
-              )
-          );
+      const matchingOption =
+        findSchoolOption(
+          options,
+          school
+        );
 
-        if (
-          dropdownOptions.length === 0
-        ) {
-          console.error(
-            'No options found in the "Work Queue" dropdown menu.'
-          );
-
-          return;
-        }
-
-        const matchingOption =
-          dropdownOptions.find(
-            option => {
-              const optionName =
-                option
-                  .getAttribute(
-                    'qtip'
-                  )
-                  .trim()
-                  .toLowerCase();
-
-              if (
-                selectedSchool ===
-                'Dinuba Intermediate School'
-              ) {
-                return optionName.includes(
-                  'dinuba intermediate'
-                );
-              }
-
-              if (
-                selectedSchool ===
-                'Dinuba High School'
-              ) {
-                return optionName.includes(
-                  'dinuba high'
-                );
-              }
-
-              return optionName.startsWith(
-                selectedSchool
-                  .split(' ')[0]
-                  .toLowerCase()
-              );
-            }
-          );
-
-        if (
+      if (
+        matchingOption
+      ) {
+        clickComboOption(
           matchingOption
+        );
+      }
+    }, 500);
+  }
+
+  function findSchoolOption(
+    options,
+    school
+  ) {
+    return options.find(
+      option => {
+        const qtip =
+          option.getAttribute(
+            'qtip'
+          );
+
+        if (!qtip) {
+          return false;
+        }
+
+        const optionName =
+          qtip
+            .trim()
+            .toLowerCase();
+
+        if (
+          school ===
+          'Dinuba Intermediate School'
         ) {
-          const parentOption =
-            matchingOption.closest(
-              '.x-combo-list-item'
-            );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mousedown',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mouseup',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'click',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          console.log(
-            `Selected work queue: ${matchingOption.getAttribute('qtip')}`
-          );
-
-        } else {
-          console.warn(
-            `No matching work queue option found for the school: ${selectedSchool}`
+          return optionName.includes(
+            'dinuba intermediate'
           );
         }
-      },
-      500
+
+        if (
+          school ===
+          'Dinuba High School'
+        ) {
+          return optionName.includes(
+            'dinuba high'
+          );
+        }
+
+        return optionName.startsWith(
+          school
+            .split(' ')[0]
+            .toLowerCase()
+        );
+      }
     );
   }
+
+  function clickComboOption(
+    matchingOption
+  ) {
+    const parentOption =
+      matchingOption.closest(
+        '.x-combo-list-item'
+      );
+
+    if (!parentOption) {
+      return;
+    }
+
+    parentOption.dispatchEvent(
+      new MouseEvent(
+        'mousedown',
+        {
+          bubbles: true
+        }
+      )
+    );
+
+    parentOption.dispatchEvent(
+      new MouseEvent(
+        'mouseup',
+        {
+          bubbles: true
+        }
+      )
+    );
+
+    parentOption.dispatchEvent(
+      new MouseEvent(
+        'click',
+        {
+          bubbles: true
+        }
+      )
+    );
+  }
+
+  /* =========================================================
+     WORK TYPE
+     ========================================================= */
 
   function selectWorkTypeAsChromebook() {
-    const workTypeDropdownTrigger =
-      document
-        .getElementsByClassName(
-          'x-form-trigger-arrow'
-        )[4];
+    const triggers =
+      document.getElementsByClassName(
+        'x-form-trigger-arrow'
+      );
 
-    if (
-      !workTypeDropdownTrigger
-    ) {
+    const trigger =
+      triggers[4];
+
+    if (!trigger) {
       console.error(
-        '"Work Type" dropdown trigger not found.'
+        'Work Type trigger not found.'
       );
 
       return;
     }
 
-    workTypeDropdownTrigger.click();
+    trigger.click();
 
-    setTimeout(
-      () => {
-        const dropdownContainer =
-          document.getElementById(
-            'base_inc_incident_work_type-combo-list'
-          );
+    setTimeout(() => {
+      const container =
+        document.getElementById(
+          'base_inc_incident_work_type-combo-list'
+        );
 
-        if (
-          !dropdownContainer
-        ) {
-          console.error(
-            'Dropdown list container not found for "Work Type".'
-          );
+      if (!container) {
+        return;
+      }
 
-          return;
-        }
+      const options =
+        Array.from(
+          container.querySelectorAll(
+            '.x-combo-list-item span[qtip]'
+          )
+        );
 
-        const dropdownOptions =
-          Array.from(
-            dropdownContainer
-              .querySelectorAll(
-                '.x-combo-list-item span[qtip]'
-              )
-          );
-
-        if (
-          dropdownOptions.length === 0
-        ) {
-          console.error(
-            'No options found in the "Work Type" dropdown menu.'
-          );
-
-          return;
-        }
-
-        const matchingOption =
-          dropdownOptions.find(
-            option =>
-              option
-                .getAttribute(
-                  'qtip'
-                )
-                .trim()
-                .toLowerCase() ===
-              'chromebook'
-          );
-
-        if (
-          matchingOption
-        ) {
-          const parentOption =
-            matchingOption.closest(
-              '.x-combo-list-item'
+      const matchingOption =
+        options.find(option => {
+          const qtip =
+            option.getAttribute(
+              'qtip'
             );
 
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mousedown',
-              {
-                bubbles: true
-              }
-            )
+          return (
+            qtip &&
+            qtip
+              .trim()
+              .toLowerCase() ===
+              'chromebook'
           );
+        });
 
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'mouseup',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          parentOption.dispatchEvent(
-            new MouseEvent(
-              'click',
-              {
-                bubbles: true
-              }
-            )
-          );
-
-          console.log(
-            'Selected work type: Chromebook'
-          );
-
-        } else {
-          console.warn(
-            'No matching option found for "Chromebook".'
-          );
-        }
-      },
-      500
-    );
+      if (
+        matchingOption
+      ) {
+        clickComboOption(
+          matchingOption
+        );
+      }
+    }, 500);
   }
+
+  /* =========================================================
+     TEXT AREA
+     ========================================================= */
 
   function triggerTextareaInput(
     textareaElement,
     value
   ) {
-    var clickEvent =
-      new MouseEvent(
-        'click',
-        {
-          bubbles: true,
-          clientX:
-            textareaElement.offsetWidth -
-            2,
-          clientY:
-            textareaElement.offsetHeight -
-            2,
-        }
-      );
-
-    textareaElement.dispatchEvent(
-      clickEvent
-    );
+    textareaElement.focus();
 
     textareaElement.value =
       value;
@@ -2446,125 +2413,108 @@
         }
       )
     );
+
+    textareaElement.blur();
   }
+
+  /* =========================================================
+     SUBMIT FORM
+     ========================================================= */
 
   function submitForm(
     currentIndex,
     callback
   ) {
-    var saveButton =
+    const saveButton =
       document.getElementById(
         'Save'
       );
 
-    if (
-      saveButton
-    ) {
-      try {
-        saveButton.click();
-
-        console.log(
-          'Form submitted for Chromebook ' +
-          (currentIndex + 1)
-        );
-
-        setTimeout(
-          function () {
-            var errorLabel =
-              Array.from(
-                document
-                  .querySelectorAll(
-                    'span'
-                  )
-              )
-              .find(
-                span =>
-                  span.textContent.includes(
-                    'Error'
-                  )
-              );
-
-            if (
-              errorLabel
-            ) {
-              console.error(
-                'Error detected: ' +
-                errorLabel.textContent
-              );
-
-              localStorage.setItem(
-                'currentIndex',
-                currentIndex
-              );
-
-              location.reload();
-
-            } else {
-              if (
-                typeof callback ===
-                'function'
-              ) {
-                callback();
-              }
-            }
-          },
-          1000
-        );
-
-      } catch (error) {
-        console.error(
-          'Error clicking the "Save" button:',
-          error
-        );
-      }
-
-    } else {
-      console.log(
-        'Save button not found. Form not submitted.'
+    if (!saveButton) {
+      console.error(
+        'Save button not found.'
       );
+
+      submissionInProgress =
+        false;
+
+      hideOverlay();
+
+      return;
+    }
+
+    try {
+      saveButton.click();
+
+      console.log(
+        'Form submitted for Chromebook ' +
+        (currentIndex + 1)
+      );
+
+      setTimeout(() => {
+        const errorLabel =
+          Array.from(
+            document.querySelectorAll(
+              'span'
+            )
+          ).find(span => {
+            return (
+              span.textContent &&
+              span.textContent.includes(
+                'Error'
+              )
+            );
+          });
+
+        if (
+          errorLabel
+        ) {
+          console.error(
+            'Error detected:',
+            errorLabel.textContent
+          );
+
+          submissionInProgress =
+            false;
+
+          hideOverlay();
+
+          return;
+        }
+
+        if (
+          typeof callback ===
+          'function'
+        ) {
+          callback();
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error(
+        'Error clicking Save:',
+        error
+      );
+
+      submissionInProgress =
+        false;
+
+      hideOverlay();
     }
   }
 
-  window.addEventListener(
-    'load',
-    function () {
-      const storedIndex =
-        localStorage.getItem(
-          'currentIndex'
-        );
-
-      if (
-        storedIndex
-      ) {
-        const index =
-          parseInt(
-            storedIndex,
-            10
-          );
-
-        localStorage.removeItem(
-          'currentIndex'
-        );
-
-        submitChromebooks(
-          index,
-          selectedSchool
-        );
-      }
-    }
-  );
+  /* =========================================================
+     FINAL SUMMARY
+     ========================================================= */
 
   function displaySummary() {
     const summaryContent = `
-      <div class="modal-body ${
-        chromebooks.length > 5
-          ? 'scrollable'
-          : ''
-      }">
+      <div class="modal-body final-summary-body">
 
         <button
           id="closeButton"
           class="modal-button sd-icon-button"
+          type="button"
         >
           ✕
         </button>
@@ -2582,8 +2532,8 @@
         </h2>
 
         <p class="sd-subtitle">
-          Your Chromebook tickets were
-          successfully created in SchoolDude.
+          Your Chromebook tickets have been
+          submitted to SchoolDude.
         </p>
 
         <div class="sd-summary-grid">
@@ -2595,7 +2545,7 @@
             </span>
 
             <strong>
-              ${selectedSchool}
+              ${selectedSchool || 'Not Selected'}
             </strong>
 
           </div>
@@ -2607,7 +2557,7 @@
             </span>
 
             <strong>
-              ${selectedTechnician}
+              ${selectedTechnician || 'Unknown'}
             </strong>
 
           </div>
@@ -2626,46 +2576,49 @@
 
         </div>
 
-        <ul>
+        <div class="final-summary-device-list">
 
           ${
             chromebooks
               .map(
-                chromebook => `
-                  <li>
+                (
+                  chromebook,
+                  index
+                ) => `
+                <div class="final-device-card">
 
+                  <div class="sd-device-number">
+                    DEVICE ${index + 1}
+                  </div>
+
+                  <div>
                     <strong>
-                      District Tag:
+                      ${chromebook.districtTag}
                     </strong>
-                    ${chromebook.districtTag}
+                  </div>
 
-                    <br>
-
-                    <strong>
-                      Serial #:
-                    </strong>
+                  <div>
                     ${chromebook.serialNumber}
+                  </div>
 
-                    <br>
-
-                    <strong>
-                      Model Number:
-                    </strong>
+                  <div>
                     ${chromebook.modelNumber}
+                  </div>
 
-                  </li>
-                `
+                </div>
+              `
               )
               .join('')
           }
 
-        </ul>
+        </div>
 
         <div class="button-container">
 
           <button
             id="addMoreButton"
             class="modal-button sd-primary"
+            type="button"
           >
             Add More Chromebooks
           </button>
@@ -2680,88 +2633,36 @@
       function () {}
     );
 
-    document
-      .getElementById(
+    const addMoreButton =
+      document.getElementById(
         'addMoreButton'
-      )
-      .addEventListener(
+      );
+
+    if (
+      addMoreButton
+    ) {
+      addMoreButton.addEventListener(
         'click',
         function () {
-          const modal =
-            document.querySelector(
-              'div.modal'
-            );
-
-          if (
-            modal &&
-            modal.parentNode
-          ) {
-            modal.parentNode
-              .removeChild(modal);
-          }
-
-          const modalBackground =
-            document.querySelector(
-              '.modal-background'
-            );
-
-          if (
-            modalBackground
-          ) {
-            modalBackground
-              .parentNode
-              .removeChild(
-                modalBackground
-              );
-          }
-
           chromebooks = [];
+
           chromebookCount = 0;
 
           selectedSchool = '';
+
           selectedTechnician = '';
+
+          removeExistingModal();
 
           startProcess();
         }
       );
-
-    document
-      .getElementById(
-        'closeButton'
-      )
-      .addEventListener(
-        'click',
-        function () {
-          const modal =
-            document.querySelector(
-              'div.modal'
-            );
-
-          if (
-            modal &&
-            modal.parentNode
-          ) {
-            modal.parentNode
-              .removeChild(modal);
-          }
-
-          const modalBackground =
-            document.querySelector(
-              '.modal-background'
-            );
-
-          if (
-            modalBackground
-          ) {
-            modalBackground
-              .parentNode
-              .removeChild(
-                modalBackground
-              );
-          }
-        }
-      );
+    }
   }
+
+  /* =========================================================
+     STYLES
+     ========================================================= */
 
   function injectStyles() {
     const style =
@@ -2775,14 +2676,12 @@
     style.innerHTML = `
 
       :root {
-        --sd-navy: #0b1f3a;
         --sd-blue: #2563eb;
         --sd-blue-dark: #1d4ed8;
         --sd-cyan: #38bdf8;
         --sd-text: #172033;
         --sd-muted: #697386;
-        --sd-border: rgba(15,23,42,.10);
-        --sd-soft: #f6f8fb;
+        --sd-border: #e5e9f0;
         --sd-danger: #dc2626;
         --sd-success: #16a34a;
       }
@@ -2800,30 +2699,36 @@
 
         display: flex !important;
 
-        align-items: center !important;
-        justify-content: center !important;
+        justify-content:
+          center !important;
 
-        padding: 24px !important;
+        align-items:
+          center !important;
 
-        box-sizing: border-box !important;
+        box-sizing:
+          border-box !important;
 
-        z-index: 2147483000 !important;
+        padding:
+          24px !important;
+
+        z-index:
+          2147483000 !important;
 
         background:
           rgba(
-            10,
-            18,
-            32,
-            .38
+            8,
+            15,
+            28,
+            .42
           ) !important;
 
         -webkit-backdrop-filter:
-          blur(14px)
+          blur(16px)
           saturate(130%)
           !important;
 
         backdrop-filter:
-          blur(14px)
+          blur(16px)
           saturate(130%)
           !important;
 
@@ -2840,33 +2745,27 @@
       }
 
       .sd-modal {
+        position:
+          relative !important;
+
         width:
           min(
-            560px,
+            570px,
             calc(
               100vw - 40px
             )
           ) !important;
 
         max-height:
-          min(
-            760px,
-            calc(
-              100vh - 48px
-            )
+          calc(
+            100vh - 48px
           ) !important;
 
         overflow:
           hidden !important;
 
-        position:
-          relative !important;
-
         padding:
           0 !important;
-
-        border-radius:
-          22px !important;
 
         border:
           1px solid
@@ -2874,15 +2773,18 @@
             255,
             255,
             255,
-            .72
+            .75
           ) !important;
+
+        border-radius:
+          22px !important;
 
         background:
           rgba(
             255,
             255,
             255,
-            .94
+            .96
           ) !important;
 
         -webkit-backdrop-filter:
@@ -2896,20 +2798,34 @@
           !important;
 
         box-shadow:
-          0 32px 80px
+          0 32px 90px
           rgba(
             2,
             8,
             23,
-            .28
+            .32
           ),
-          0 8px 24px
+          0 8px 25px
           rgba(
             2,
             8,
             23,
             .12
           ) !important;
+
+        color:
+          var(
+            --sd-text
+          ) !important;
+
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Arial,
+          sans-serif !important;
 
         transform:
           translateY(
@@ -2919,7 +2835,8 @@
             .985
           );
 
-        opacity: 0;
+        opacity:
+          0;
 
         transition:
           transform
@@ -2933,21 +2850,6 @@
           opacity
           .16s
           ease;
-
-        font-family:
-          Inter,
-          ui-sans-serif,
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          Roboto,
-          Arial,
-          sans-serif !important;
-
-        color:
-          var(
-            --sd-text
-          ) !important;
       }
 
       .sd-modal.is-visible {
@@ -2955,11 +2857,13 @@
           translateY(0)
           scale(1);
 
-        opacity: 1;
+        opacity:
+          1;
       }
 
       .sd-modal-accent {
-        height: 4px;
+        height:
+          4px;
 
         background:
           linear-gradient(
@@ -2974,38 +2878,22 @@
       }
 
       .modal-content {
-        width: 100%;
+        width:
+          100%;
       }
 
       .modal-body {
-        position: relative;
+        position:
+          relative;
 
         box-sizing:
           border-box;
 
         padding:
-          34px
-          34px
-          30px;
+          34px;
 
         text-align:
           left;
-      }
-
-      .modal-body.scrollable {
-        max-height:
-          min(
-            690px,
-            calc(
-              100vh - 70px
-            )
-          );
-
-        overflow-y:
-          auto;
-
-        scrollbar-width:
-          thin;
       }
 
       .sd-kicker {
@@ -3016,10 +2904,15 @@
           center;
 
         gap:
-          7px;
+          8px;
 
         margin-bottom:
-          9px;
+          10px;
+
+        color:
+          var(
+            --sd-blue
+          );
 
         font-size:
           11px;
@@ -3027,21 +2920,15 @@
         line-height:
           1;
 
-        letter-spacing:
-          .13em;
-
         font-weight:
           800;
 
-        color:
-          var(
-            --sd-blue
-          );
+        letter-spacing:
+          .13em;
       }
 
       .sd-kicker::before {
-        content:
-          '';
+        content: "";
 
         width:
           7px;
@@ -3050,7 +2937,7 @@
           7px;
 
         border-radius:
-          999px;
+          100%;
 
         background:
           var(
@@ -3074,46 +2961,30 @@
           8px
           0 !important;
 
+        color:
+          #0f172a !important;
+
         font-size:
           26px !important;
 
         line-height:
           1.2 !important;
 
-        letter-spacing:
-          -.025em !important;
-
         font-weight:
           750 !important;
 
-        color:
-          #0f172a !important;
-      }
-
-      .modal-body h3 {
-        margin:
-          18px
-          0
-          12px !important;
-
-        font-size:
-          16px !important;
-
-        font-weight:
-          700 !important;
-
-        color:
-          #334155 !important;
+        letter-spacing:
+          -.025em !important;
       }
 
       .sd-subtitle {
+        max-width:
+          470px;
+
         margin:
           0
           0
           24px;
-
-        max-width:
-          470px;
 
         color:
           var(
@@ -3136,9 +3007,7 @@
         display:
           block;
 
-        margin:
-          0
-          0
+        margin-bottom:
           7px;
 
         color:
@@ -3146,9 +3015,6 @@
 
         font-size:
           13px;
-
-        line-height:
-          1.3;
 
         font-weight:
           700;
@@ -3163,6 +3029,38 @@
 
         font-size:
           11.5px;
+      }
+
+      .sd-current-count {
+        margin-top:
+          18px;
+
+        padding:
+          10px
+          13px;
+
+        border:
+          1px solid
+          #e7ecf3;
+
+        border-radius:
+          10px;
+
+        background:
+          #f8fafc;
+
+        color:
+          #64748b;
+
+        font-size:
+          12px;
+      }
+
+      .sd-current-count strong {
+        color:
+          var(
+            --sd-blue
+          );
       }
 
       .sd-input-shell {
@@ -3180,19 +3078,16 @@
         top:
           50%;
 
+        z-index:
+          2;
+
         transform:
           translateY(
             -50%
           );
 
-        z-index:
-          2;
-
         color:
           #64748b;
-
-        font-size:
-          13px;
 
         pointer-events:
           none;
@@ -3202,13 +3097,10 @@
       .sd-input-icon {
         color:
           #16a34a;
-
-        font-size:
-          10px;
       }
 
-      .modal-select,
-      .modal-input {
+      .modal-input,
+      .modal-select {
         width:
           100% !important;
 
@@ -3232,25 +3124,25 @@
         border-radius:
           12px !important;
 
+        outline:
+          none !important;
+
         background:
           rgba(
             255,
             255,
             255,
-            .92
+            .94
           ) !important;
 
         color:
           #172033 !important;
 
-        font:
+        font-family:
           inherit !important;
 
         font-size:
           14px !important;
-
-        outline:
-          none !important;
 
         box-shadow:
           0 1px 2px
@@ -3267,31 +3159,24 @@
           ease,
           box-shadow
           .15s
-          ease,
-          background
-          .15s
           ease !important;
       }
 
       .sd-input-shell
-      .modal-select,
-
+      .modal-input,
       .sd-input-shell
-      .modal-input {
+      .modal-select {
         padding-left:
-          38px !important;
+          40px !important;
       }
 
       .modal-input[readonly] {
         background:
           #f7f9fc !important;
-
-        color:
-          #475569 !important;
       }
 
-      .modal-select:focus,
-      .modal-input:focus {
+      .modal-input:focus,
+      .modal-select:focus {
         border-color:
           rgba(
             37,
@@ -3308,20 +3193,17 @@
             235,
             .10
           ) !important;
-
-        background:
-          #fff !important;
       }
 
       .button-container {
         display:
           flex;
 
-        align-items:
-          center;
-
         justify-content:
           flex-end;
+
+        align-items:
+          center;
 
         gap:
           10px;
@@ -3334,16 +3216,25 @@
         min-height:
           42px;
 
+        box-sizing:
+          border-box;
+
         padding:
           10px
           17px;
 
         border:
           1px solid
-          transparent;
+          #dde3eb;
 
         border-radius:
           11px;
+
+        background:
+          #eef2f7;
+
+        color:
+          #334155;
 
         font-family:
           inherit;
@@ -3354,9 +3245,6 @@
         font-weight:
           700;
 
-        line-height:
-          1;
-
         cursor:
           pointer;
 
@@ -3364,13 +3252,10 @@
           transform
           .12s
           ease,
-          box-shadow
-          .15s
-          ease,
           background
           .15s
           ease,
-          border-color
+          box-shadow
           .15s
           ease;
       }
@@ -3380,54 +3265,24 @@
           translateY(
             -1px
           );
-      }
 
-      .modal-button:active {
-        transform:
-          translateY(0);
-      }
-
-      .modal-button:not(
-        .sd-icon-button
-      ) {
-        background:
-          #eef2f7;
-
-        color:
-          #334155;
-
-        border-color:
-          #dde3eb;
-      }
-
-      .modal-button:not(
-        .sd-icon-button
-      ):hover {
         background:
           #e7edf5;
       }
 
-      .modal-button.sd-primary,
-      #nextButton.modal-button {
+      .modal-button.sd-primary {
+        border-color:
+          #1f58db !important;
+
         background:
           linear-gradient(
             135deg,
-            var(
-              --sd-blue
-            ),
-            #1e55d8
+            #2f6df2,
+            #1d4ed8
           ) !important;
 
         color:
           #fff !important;
-
-        border-color:
-          rgba(
-            30,
-            78,
-            216,
-            .55
-          ) !important;
 
         box-shadow:
           0 8px 18px
@@ -3435,46 +3290,42 @@
             37,
             99,
             235,
-            .22
+            .24
           ) !important;
       }
 
-      .modal-button.sd-primary:hover,
-      #nextButton.modal-button:hover {
+      .modal-button.sd-primary:hover {
         background:
           linear-gradient(
             135deg,
-            #2d6af0,
-            var(
-              --sd-blue-dark
-            )
+            #3676ff,
+            #1947c7
           ) !important;
 
         box-shadow:
-          0 10px 22px
+          0 10px 23px
           rgba(
             37,
             99,
             235,
-            .28
+            .30
           ) !important;
       }
 
-      #doneButton.modal-button,
-      #addButton.modal-button,
-      #addMoreButton.modal-button {
+      .sd-secondary-dark,
+      #doneButton {
+        border-color:
+          #0f172a !important;
+
         background:
           #0f172a !important;
 
         color:
           #fff !important;
-
-        border-color:
-          #0f172a !important;
       }
 
       .sd-icon-button,
-      #closeButton.modal-button {
+      #closeButton {
         position:
           absolute !important;
 
@@ -3484,8 +3335,11 @@
         right:
           22px !important;
 
+        z-index:
+          100 !important;
+
         display:
-          inline-flex !important;
+          flex !important;
 
         align-items:
           center !important;
@@ -3505,9 +3359,6 @@
         padding:
           0 !important;
 
-        margin:
-          0 !important;
-
         border:
           1px solid
           #e2e8f0 !important;
@@ -3516,44 +3367,24 @@
           10px !important;
 
         background:
-          rgba(
-            248,
-            250,
-            252,
-            .88
-          ) !important;
+          #f8fafc !important;
 
         color:
           #64748b !important;
 
         box-shadow:
           none !important;
-
-        z-index:
-          4;
-      }
-
-      .sd-icon-button:hover,
-      #closeButton.modal-button:hover {
-        background:
-          #fff !important;
-
-        color:
-          #0f172a !important;
-
-        border-color:
-          #cbd5e1 !important;
       }
 
       .error-message {
         margin:
           0
           0
-          16px;
+          18px;
 
         padding:
-          11px
-          13px;
+          12px
+          14px;
 
         border:
           1px solid
@@ -3568,12 +3399,7 @@
           11px;
 
         background:
-          rgba(
-            254,
-            242,
-            242,
-            .92
-          );
+          #fef2f2;
 
         color:
           #b42318;
@@ -3595,19 +3421,20 @@
         grid-template-columns:
           repeat(
             3,
-            1fr
+            minmax(
+              0,
+              1fr
+            )
           );
 
         gap:
           10px;
-
-        margin:
-          18px
-          0
-          20px;
       }
 
       .sd-summary-card {
+        min-width:
+          0;
+
         padding:
           13px
           14px;
@@ -3650,39 +3477,155 @@
         display:
           block;
 
+        overflow:
+          hidden;
+
         color:
           #172033;
 
         font-size:
           13px;
 
-        overflow:
-          hidden;
+        white-space:
+          nowrap;
 
         text-overflow:
           ellipsis;
-
-        white-space:
-          nowrap;
       }
 
-      .modal-body ul {
+      /* =====================================================
+         REVIEW SCREEN
+         ===================================================== */
+
+      .review-modal-body {
+        display:
+          flex !important;
+
+        flex-direction:
+          column !important;
+
+        width:
+          100%;
+
+        height:
+          min(
+            700px,
+            calc(
+              100vh - 80px
+            )
+          );
+
+        max-height:
+          calc(
+            100vh - 80px
+          );
+
+        box-sizing:
+          border-box;
+
+        padding:
+          0 !important;
+
+        overflow:
+          hidden !important;
+      }
+
+      .review-header-section {
+        flex:
+          0 0 auto;
+
+        position:
+          relative;
+
+        padding:
+          32px
+          34px
+          20px;
+
+        border-bottom:
+          1px solid
+          rgba(
+            15,
+            23,
+            42,
+            .06
+          );
+      }
+
+      .review-list-wrapper {
+        flex:
+          1 1 auto;
+
+        min-height:
+          0;
+
+        overflow:
+          hidden;
+
+        padding:
+          0
+          0
+          0
+          34px;
+      }
+
+      .review-device-list {
+        height:
+          100%;
+
+        box-sizing:
+          border-box;
+
+        margin:
+          0 !important;
+
+        padding:
+          16px
+          26px
+          16px
+          0 !important;
+
+        overflow-y:
+          auto !important;
+
+        overflow-x:
+          hidden !important;
+
         list-style:
           none;
 
-        margin:
-          14px
-          0
-          0;
+        scrollbar-width:
+          thin;
 
-        padding:
-          0;
+        scrollbar-color:
+          #cbd5e1
+          transparent;
       }
 
-      .modal-body ul li,
+      .review-device-list::-webkit-scrollbar {
+        width:
+          7px;
+      }
+
+      .review-device-list::-webkit-scrollbar-track {
+        background:
+          transparent;
+      }
+
+      .review-device-list::-webkit-scrollbar-thumb {
+        border-radius:
+          999px;
+
+        background:
+          #cbd5e1;
+      }
+
       .chromebook-item {
         position:
           relative;
+
+        box-sizing:
+          border-box;
 
         margin:
           0
@@ -3691,7 +3634,7 @@
 
         padding:
           15px
-          92px
+          90px
           15px
           16px;
 
@@ -3709,45 +3652,24 @@
             #fbfcfe
           );
 
-        color:
-          #475569;
-
-        font-size:
-          13px;
-
-        line-height:
-          1.65;
-
         box-shadow:
           0 1px 2px
           rgba(
             15,
             23,
             42,
-            .025
+            .03
           );
       }
 
-      .modal-body ul li:hover,
       .chromebook-item:hover {
         border-color:
-          #d7dee8;
-
-        background:
-          #fff;
-      }
-
-      .modal-body strong {
-        color:
-          #1e293b;
-
-        font-weight:
-          700;
+          #d3dce8;
       }
 
       .sd-device-number {
         margin-bottom:
-          7px;
+          9px;
 
         color:
           #2563eb;
@@ -3759,7 +3681,43 @@
           800;
 
         letter-spacing:
-          .08em;
+          .09em;
+      }
+
+      .device-detail-row {
+        display:
+          flex;
+
+        gap:
+          8px;
+
+        margin-top:
+          3px;
+
+        font-size:
+          12.5px;
+
+        line-height:
+          1.5;
+      }
+
+      .device-detail-row span {
+        flex:
+          0 0 82px;
+
+        color:
+          #8a94a6;
+      }
+
+      .device-detail-row strong {
+        color:
+          #334155;
+
+        font-weight:
+          700;
+
+        word-break:
+          break-word;
       }
 
       .button-group {
@@ -3782,7 +3740,7 @@
       .edit-button,
       .delete-button {
         display:
-          inline-flex;
+          flex;
 
         align-items:
           center;
@@ -3806,7 +3764,10 @@
           pointer;
 
         transition:
-          all
+          background
+          .14s
+          ease,
+          border-color
           .14s
           ease;
       }
@@ -3825,10 +3786,7 @@
 
       .edit-button:hover {
         background:
-          #e3eeff;
-
-        border-color:
-          #c4d7ff;
+          #dfeaff;
       }
 
       .delete-button {
@@ -3846,9 +3804,164 @@
       .delete-button:hover {
         background:
           #ffe4e6;
+      }
 
-        border-color:
-          #fecdd3;
+      .review-action-bar {
+        flex:
+          0 0 auto !important;
+
+        display:
+          flex !important;
+
+        align-items:
+          center !important;
+
+        justify-content:
+          space-between !important;
+
+        width:
+          100% !important;
+
+        box-sizing:
+          border-box !important;
+
+        gap:
+          16px !important;
+
+        margin:
+          0 !important;
+
+        padding:
+          16px
+          34px
+          20px !important;
+
+        border-top:
+          1px solid
+          rgba(
+            15,
+            23,
+            42,
+            .08
+          );
+
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            .99
+          );
+
+        box-shadow:
+          0 -10px 30px
+          rgba(
+            15,
+            23,
+            42,
+            .07
+          );
+
+        position:
+          relative !important;
+
+        z-index:
+          50 !important;
+
+        visibility:
+          visible !important;
+
+        opacity:
+          1 !important;
+      }
+
+      .review-device-count {
+        flex:
+          0 0 auto;
+
+        color:
+          #64748b;
+
+        font-size:
+          12px;
+
+        font-weight:
+          600;
+      }
+
+      .review-device-count strong {
+        color:
+          #0f172a;
+
+        font-size:
+          14px;
+      }
+
+      .review-action-buttons {
+        display:
+          flex !important;
+
+        align-items:
+          center !important;
+
+        justify-content:
+          flex-end !important;
+
+        gap:
+          10px !important;
+
+        visibility:
+          visible !important;
+
+        opacity:
+          1 !important;
+      }
+
+      .review-action-buttons
+      .modal-button {
+        display:
+          inline-flex !important;
+
+        align-items:
+          center !important;
+
+        justify-content:
+          center !important;
+
+        visibility:
+          visible !important;
+
+        opacity:
+          1 !important;
+
+        position:
+          relative !important;
+
+        top:
+          auto !important;
+
+        bottom:
+          auto !important;
+
+        left:
+          auto !important;
+
+        right:
+          auto !important;
+      }
+
+      /* =====================================================
+         FINAL SUMMARY
+         ===================================================== */
+
+      .final-summary-body {
+        max-height:
+          calc(
+            100vh - 80px
+          );
+
+        overflow-y:
+          auto;
       }
 
       .sd-success-icon {
@@ -3868,7 +3981,7 @@
           52px;
 
         margin-bottom:
-          18px;
+          20px;
 
         border-radius:
           50%;
@@ -3880,7 +3993,7 @@
           #16a34a;
 
         font-size:
-          25px;
+          26px;
 
         font-weight:
           900;
@@ -3895,16 +4008,48 @@
           );
       }
 
-      .disabled {
-        opacity:
-          .55;
+      .final-summary-device-list {
+        max-height:
+          280px;
 
-        cursor:
-          not-allowed !important;
+        overflow-y:
+          auto;
 
-        pointer-events:
-          none;
+        margin-top:
+          18px;
+
+        padding-right:
+          5px;
       }
+
+      .final-device-card {
+        margin-bottom:
+          8px;
+
+        padding:
+          12px
+          14px;
+
+        border:
+          1px solid
+          #e5e9f0;
+
+        border-radius:
+          11px;
+
+        background:
+          #f8fafc;
+
+        color:
+          #64748b;
+
+        font-size:
+          12px;
+      }
+
+      /* =====================================================
+         SUBMITTING OVERLAY
+         ===================================================== */
 
       .overlay {
         position:
@@ -3930,33 +4075,32 @@
 
         background:
           rgba(
-            9,
-            18,
-            32,
-            .44
+            8,
+            15,
+            28,
+            .48
           );
 
         -webkit-backdrop-filter:
-          blur(14px)
-          saturate(125%);
+          blur(16px);
 
         backdrop-filter:
-          blur(14px)
-          saturate(125%);
-
-        color:
-          #fff;
+          blur(16px);
       }
 
       .overlay-message {
-        min-width:
-          320px;
+        width:
+          min(
+            420px,
+            calc(
+              100vw - 40px
+            )
+          );
 
-        max-width:
-          520px;
+        box-sizing:
+          border-box;
 
         padding:
-          24px
           28px;
 
         border:
@@ -3976,38 +4120,26 @@
             15,
             23,
             42,
-            .86
+            .92
           );
 
+        color:
+          #fff;
+
+        text-align:
+          center;
+
         box-shadow:
-          0 24px 70px
+          0 30px 80px
           rgba(
             2,
             8,
             23,
-            .35
+            .40
           );
-
-        font-size:
-          18px;
-
-        line-height:
-          1.4;
-
-        font-weight:
-          700;
-
-        text-align:
-          center;
       }
 
-      .overlay-message::before {
-        content:
-          '';
-
-        display:
-          block;
-
+      .sd-spinner {
         width:
           30px;
 
@@ -4017,7 +4149,7 @@
         margin:
           0
           auto
-          13px;
+          16px;
 
         border:
           3px solid
@@ -4025,14 +4157,14 @@
             255,
             255,
             255,
-            .24
+            .20
           );
 
         border-top-color:
           #fff;
 
         border-radius:
-          999px;
+          50%;
 
         animation:
           sdSpin
@@ -4043,7 +4175,7 @@
 
       .sd-overlay-kicker {
         margin-bottom:
-          8px;
+          7px;
 
         color:
           #93c5fd;
@@ -4051,11 +4183,22 @@
         font-size:
           10px;
 
-        letter-spacing:
-          .12em;
-
         font-weight:
           900;
+
+        letter-spacing:
+          .12em;
+      }
+
+      .sd-overlay-title {
+        color:
+          #fff;
+
+        font-size:
+          18px;
+
+        font-weight:
+          750;
       }
 
       .sd-overlay-helper {
@@ -4068,143 +4211,8 @@
         font-size:
           12px;
 
-        font-weight:
-          500;
-      }
-
-      /*
-       * ===============================================
-       * REVIEW SCREEN
-       * FIXED / STICKY ACTION BAR
-       * ===============================================
-       */
-
-      .review-modal-body {
-        max-height:
-          calc(
-            100vh - 80px
-          );
-
-        overflow-y:
-          auto !important;
-
-        padding-bottom:
-          100px !important;
-
-        scrollbar-width:
-          thin;
-      }
-
-      .review-action-bar {
-        position:
-          sticky !important;
-
-        bottom:
-          -1px;
-
-        z-index:
-          20;
-
-        display:
-          flex;
-
-        align-items:
-          center;
-
-        justify-content:
-          space-between;
-
-        gap:
-          16px;
-
-        margin-left:
-          -34px;
-
-        margin-right:
-          -34px;
-
-        margin-bottom:
-          -100px;
-
-        padding:
-          16px
-          34px
-          22px;
-
-        background:
-          linear-gradient(
-            180deg,
-            rgba(
-              255,
-              255,
-              255,
-              .82
-            )
-            0%,
-            rgba(
-              255,
-              255,
-              255,
-              .97
-            )
-            35%,
-            rgba(
-              255,
-              255,
-              255,
-              1
-            )
-            100%
-          );
-
-        -webkit-backdrop-filter:
-          blur(14px);
-
-        backdrop-filter:
-          blur(14px);
-
-        border-top:
-          1px solid
-          rgba(
-            15,
-            23,
-            42,
-            .08
-          );
-
-        box-shadow:
-          0 -8px 24px
-          rgba(
-            15,
-            23,
-            42,
-            .06
-          );
-      }
-
-      .review-device-count {
-        color:
-          #64748b;
-
-        font-size:
-          12px;
-
-        font-weight:
-          700;
-
-        white-space:
-          nowrap;
-      }
-
-      .review-action-buttons {
-        display:
-          flex;
-
-        align-items:
-          center;
-
-        gap:
-          10px;
+        line-height:
+          1.45;
       }
 
       @keyframes sdSpin {
@@ -4215,6 +4223,10 @@
             );
         }
       }
+
+      /* =====================================================
+         MOBILE / SMALL WINDOW
+         ===================================================== */
 
       @media (
         max-width:
@@ -4231,6 +4243,11 @@
               100vw - 24px
             ) !important;
 
+          max-height:
+            calc(
+              100vh - 24px
+            ) !important;
+
           border-radius:
             18px !important;
         }
@@ -4238,8 +4255,7 @@
         .modal-body {
           padding:
             28px
-            22px
-            24px;
+            22px;
         }
 
         .modal-body h2 {
@@ -4247,36 +4263,51 @@
             22px !important;
         }
 
-        #closeButton.modal-button {
-          top:
-            16px !important;
-
-          right:
-            16px !important;
-        }
-
         .sd-summary-grid {
           grid-template-columns:
             1fr;
         }
 
+        .review-modal-body {
+          height:
+            calc(
+              100vh - 30px
+            );
+
+          max-height:
+            calc(
+              100vh - 30px
+            );
+        }
+
+        .review-header-section {
+          padding:
+            26px
+            22px
+            16px;
+        }
+
+        .review-list-wrapper {
+          padding-left:
+            22px;
+        }
+
+        .review-device-list {
+          padding-right:
+            16px !important;
+        }
+
         .review-action-bar {
-          margin-left:
-            -22px;
-
-          margin-right:
-            -22px;
-
           padding:
             14px
             22px
-            18px;
+            18px !important;
 
           flex-direction:
-            column;
+            column !important;
 
           align-items:
-            stretch;
+            stretch !important;
         }
 
         .review-device-count {

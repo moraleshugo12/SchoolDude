@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Add Chromebooks Button with Submission Process
 // @namespace    http://tampermonkey.net/
-// @version      1.7
-// @description  Adds the "Add Chromebooks" button and starts the submission process when clicked on SchoolDude pages.
+// @version      1.7.1
+// @description  Adds a professional Chromebook intake workflow and automates SchoolDude ticket submission.
 // @author       You
 // @match        *://*.schooldude.com/*
 // @grant        none
@@ -15,7 +15,6 @@
   let addBtnScheduled = false;
   let addBtnInserted = false;
 
-  // Function to create the "Add Chromebooks" button
   function createAddChromebooksButton() {
     const table = document.createElement('table');
     table.setAttribute('cellspacing', '0');
@@ -40,12 +39,8 @@
       <td class="x-btn-ml"><i>&nbsp;</i></td>
       <td class="x-btn-mc">
         <em class="" unselectable="on">
-          <button
-            class="x-btn-text"
-            type="button"
-            style="position: relative; width: 150px;"
-            tabindex="0"
-          >
+          <button class="x-btn-text" type="button"
+            style="position: relative; width: 150px;" tabindex="0">
             Add Chromebooks
           </button>
         </em>
@@ -86,33 +81,23 @@
 
       if (!footer.querySelector('#AddChromebooksButton')) {
         const toolbar = footer.querySelector('.x-toolbar-left-row');
-
         if (!toolbar) continue;
 
-        const addChromebooksButton =
-          createAddChromebooksButton();
+        const addChromebooksButton = createAddChromebooksButton();
 
-        const addChromebooksCell =
-          document.createElement('td');
-
+        const addChromebooksCell = document.createElement('td');
         addChromebooksCell.className = 'x-toolbar-cell';
         addChromebooksCell.appendChild(addChromebooksButton);
 
         toolbar.appendChild(addChromebooksCell);
 
-        console.log(
-          '"Add Chromebooks" button added to the footer containing "Personalizations".'
-        );
+        console.log('"Add Chromebooks" button added.');
 
         addBtnInserted = true;
-
         if (observer) observer.disconnect();
         break;
-
       } else {
-
         addBtnInserted = true;
-
         if (observer) observer.disconnect();
         break;
       }
@@ -120,7 +105,6 @@
   }
 
   const observer = new MutationObserver(() => {
-
     if (addBtnInserted) {
       observer.disconnect();
       return;
@@ -134,44 +118,28 @@
       addBtnScheduled = false;
       addButtonToSpecificFooter();
     }, 100);
-
   });
 
   window.addEventListener('load', () => {
-
     addButtonToSpecificFooter();
 
     if (!addBtnInserted) {
-      observer.observe(
-        document.body,
-        {
-          childList: true,
-          subtree: true
-        }
-      );
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
     }
-
   });
 
-  observer.observe(
-    document.body,
-    {
-      childList: true,
-      subtree: true
-    }
-  );
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
 
-  window.addEventListener(
-    'load',
-    addButtonToSpecificFooter
-  );
+  window.addEventListener('load', addButtonToSpecificFooter);
 
   function injectChromebookSubmissionLogic() {
-
-    console.log(
-      'Starting the Chromebook submission process...'
-    );
-
+    console.log('Starting the Chromebook submission process...');
     startProcess();
   }
 
@@ -195,417 +163,215 @@
   var chromebooks = [];
   var chromebookCount = 0;
 
-  /*
-   * =====================================================
-   * PREMIUM MODAL SYSTEM
-   * =====================================================
-   */
-
   function showModal(content, callback) {
-
     document
       .querySelectorAll('.sd-modal-background')
       .forEach(el => el.remove());
 
-    const modalBackground =
-      document.createElement('div');
+    const modalBackground = document.createElement('div');
+    modalBackground.className = 'modal-background sd-modal-background';
 
-    modalBackground.className =
-      'modal-background sd-modal-background';
+    const modal = document.createElement('div');
+    modal.className = 'modal sd-modal';
 
-    const modal =
-      document.createElement('div');
-
-    modal.className =
-      'modal sd-modal';
-
-    modal.setAttribute(
-      'role',
-      'dialog'
-    );
-
-    modal.setAttribute(
-      'aria-modal',
-      'true'
-    );
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
 
     modal.innerHTML = `
       <div class="sd-modal-accent"></div>
-
       <div class="modal-content">
         ${content}
       </div>
     `;
 
-    [
-      'click',
-      'mousedown',
-      'mouseup'
-    ].forEach(evt => {
-
-      modal.addEventListener(
-        evt,
-        function (e) {
-          e.stopPropagation();
-        }
-      );
-
+    ['click', 'mousedown', 'mouseup'].forEach(evt => {
+      modal.addEventListener(evt, function (e) {
+        e.stopPropagation();
+      });
     });
 
     modalBackground.appendChild(modal);
-
-    document.body.appendChild(
-      modalBackground
-    );
-
-    document.body.classList.add(
-      'sd-modal-open'
-    );
+    document.body.appendChild(modalBackground);
+    document.body.classList.add('sd-modal-open');
 
     requestAnimationFrame(() => {
-
-      modalBackground.classList.add(
-        'is-visible'
-      );
-
-      modal.classList.add(
-        'is-visible'
-      );
-
+      modalBackground.classList.add('is-visible');
+      modal.classList.add('is-visible');
     });
 
-    const closeModal = (
-      reload = false
-    ) => {
-
-      modalBackground.classList.remove(
-        'is-visible'
-      );
-
-      modal.classList.remove(
-        'is-visible'
-      );
-
-      document.body.classList.remove(
-        'sd-modal-open'
-      );
+    const closeModal = (reload = false) => {
+      modalBackground.classList.remove('is-visible');
+      modal.classList.remove('is-visible');
+      document.body.classList.remove('sd-modal-open');
 
       setTimeout(() => {
-
-        if (
-          modalBackground.parentNode
-        ) {
+        if (modalBackground.parentNode) {
           modalBackground.remove();
         }
 
         if (reload) {
           location.reload();
         }
-
       }, 170);
     };
 
-    modalBackground.addEventListener(
-      'click',
-      function (event) {
-
-        if (
-          event.target ===
-          modalBackground
-        ) {
-          closeModal(true);
-        }
-
+    modalBackground.addEventListener('click', function (event) {
+      if (event.target === modalBackground) {
+        closeModal(true);
       }
-    );
+    });
 
-    const escHandler =
-      function (event) {
-
-        if (
-          event.key === 'Escape'
-        ) {
-
-          document.removeEventListener(
-            'keydown',
-            escHandler
-          );
-
-          closeModal(true);
-        }
-
-      };
-
-    document.addEventListener(
-      'keydown',
-      escHandler
-    );
-
-    modal.addEventListener(
-      'keydown',
-      function (event) {
-
-        if (
-          event.key !== 'Enter'
-        ) {
-          return;
-        }
-
-        if (
-          event.target &&
-          event.target.tagName ===
-          'TEXTAREA'
-        ) {
-          return;
-        }
-
-        const active =
-          document.activeElement;
-
-        let valueToSubmit = null;
-
-        if (
-          active &&
-          modal.contains(active) &&
-          (
-            active.tagName === 'INPUT' ||
-            active.tagName === 'SELECT'
-          )
-        ) {
-
-          valueToSubmit =
-            active.value;
-
-        } else {
-
-          const firstInput =
-            modal.querySelector(
-              'input:not([readonly])'
-            );
-
-          const firstSelect =
-            modal.querySelector(
-              'select'
-            );
-
-          if (firstInput) {
-
-            valueToSubmit =
-              firstInput.value;
-
-          } else if (firstSelect) {
-
-            valueToSubmit =
-              firstSelect.value;
-
-          }
-
-        }
-
-        if (
-          valueToSubmit !== null
-        ) {
-
-          event.preventDefault();
-
-          callback(
-            valueToSubmit
-          );
-
-          document.removeEventListener(
-            'keydown',
-            escHandler
-          );
-
-          closeModal(false);
-        }
-
+    const escHandler = function (event) {
+      if (event.key === 'Escape') {
+        document.removeEventListener('keydown', escHandler);
+        closeModal(true);
       }
-    );
+    };
+
+    document.addEventListener('keydown', escHandler);
+
+    modal.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter') return;
+
+      if (event.target && event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const active = document.activeElement;
+      let valueToSubmit = null;
+
+      if (
+        active &&
+        modal.contains(active) &&
+        (
+          active.tagName === 'INPUT' ||
+          active.tagName === 'SELECT'
+        )
+      ) {
+        valueToSubmit = active.value;
+      } else {
+        const firstInput =
+          modal.querySelector('input:not([readonly])');
+
+        const firstSelect =
+          modal.querySelector('select');
+
+        if (firstInput) {
+          valueToSubmit = firstInput.value;
+        } else if (firstSelect) {
+          valueToSubmit = firstSelect.value;
+        }
+      }
+
+      if (valueToSubmit !== null) {
+        event.preventDefault();
+
+        callback(valueToSubmit);
+
+        document.removeEventListener('keydown', escHandler);
+
+        closeModal(false);
+      }
+    });
 
     const firstInput =
-      modal.querySelector(
-        'input:not([readonly])'
-      );
+      modal.querySelector('input:not([readonly])');
 
     const firstSelect =
-      modal.querySelector(
-        'select'
-      );
+      modal.querySelector('select');
 
     setTimeout(() => {
-
       if (firstInput) {
-
         firstInput.focus();
-
       } else if (firstSelect) {
-
         firstSelect.focus();
-
       }
-
     }, 80);
 
     const nextButton =
-      modal.querySelector(
-        '#nextButton'
-      );
+      modal.querySelector('#nextButton');
 
     if (nextButton) {
+      nextButton.addEventListener('click', function (e) {
+        e.stopPropagation();
 
-      nextButton.addEventListener(
-        'click',
-        function (e) {
+        const input =
+          modal.querySelector('input:not([readonly])');
 
-          e.stopPropagation();
+        const select =
+          modal.querySelector('select');
 
-          const input =
-            modal.querySelector(
-              'input:not([readonly])'
-            );
-
-          const select =
-            modal.querySelector(
-              'select'
-            );
-
-          if (input) {
-
-            callback(
-              input.value
-            );
-
-          } else if (select) {
-
-            callback(
-              select.value
-            );
-
-          } else {
-
-            callback();
-
-          }
-
-          document.removeEventListener(
-            'keydown',
-            escHandler
-          );
-
-          closeModal(false);
-
+        if (input) {
+          callback(input.value);
+        } else if (select) {
+          callback(select.value);
+        } else {
+          callback();
         }
-      );
+
+        document.removeEventListener('keydown', escHandler);
+
+        closeModal(false);
+      });
     }
 
     const doneButton =
-      modal.querySelector(
-        '#doneButton'
-      );
+      modal.querySelector('#doneButton');
 
     if (doneButton) {
+      doneButton.addEventListener('click', function (e) {
+        e.stopPropagation();
 
-      doneButton.addEventListener(
-        'click',
-        function (e) {
+        document.removeEventListener('keydown', escHandler);
 
-          e.stopPropagation();
+        closeModal(false);
 
-          document.removeEventListener(
-            'keydown',
-            escHandler
-          );
-
-          closeModal(false);
-
-          setTimeout(
-            displayCollectedInfo,
-            180
-          );
-
-        }
-      );
+        setTimeout(displayCollectedInfo, 180);
+      });
     }
 
     const closeButton =
-      modal.querySelector(
-        '#closeButton'
-      );
+      modal.querySelector('#closeButton');
 
     if (closeButton) {
+      closeButton.addEventListener('click', function (e) {
+        e.stopPropagation();
 
-      closeButton.addEventListener(
-        'click',
-        function (e) {
+        document.removeEventListener('keydown', escHandler);
 
-          e.stopPropagation();
-
-          document.removeEventListener(
-            'keydown',
-            escHandler
-          );
-
-          closeModal(true);
-
-        }
-      );
+        closeModal(true);
+      });
     }
   }
 
-  /*
-   * =====================================================
-   * TECHNICIAN
-   * =====================================================
-   */
-
   function extractTechnicianName() {
-
-    const email =
-      extractLoggedInUserEmail();
-
+    const email = extractLoggedInUserEmail();
     if (!email) return null;
 
-    const user =
-      email.split('@')[0];
-
-    const firstChunk =
-      user.split('.')[0];
+    const user = email.split('@')[0];
+    const firstChunk = user.split('.')[0];
 
     return firstChunk;
   }
 
-  /*
-   * =====================================================
-   * START
-   * =====================================================
-   */
-
   function startProcess() {
-
     const extractedTechnicianName =
       extractTechnicianName();
 
-    if (
-      extractedTechnicianName
-    ) {
-
+    if (extractedTechnicianName) {
       selectedTechnician =
         extractedTechnicianName;
 
       console.log(
         `Technician assigned: ${selectedTechnician}`
       );
-
     } else {
-
       console.error(
         'No technician extracted. Defaulting to "Unknown Technician".'
       );
 
       selectedTechnician =
         'Unknown Technician';
-
     }
 
     var schoolOptions =
@@ -651,8 +417,7 @@
 
         <p class="sd-subtitle">
           Choose the campus for these devices.
-          Your technician account was detected
-          automatically.
+          Your technician account was detected automatically.
         </p>
 
         <div class="sd-field-group">
@@ -684,9 +449,7 @@
             Technician
           </label>
 
-          <div
-            class="sd-input-shell is-readonly"
-          >
+          <div class="sd-input-shell is-readonly">
 
             <span class="sd-input-icon">
               ●
@@ -724,7 +487,6 @@
       </div>
       `,
       function () {
-
         selectedSchool =
           document
             .getElementById('school')
@@ -736,21 +498,13 @@
             .value;
 
         promptDistrictTag();
-
       }
     );
   }
 
-  /*
-   * =====================================================
-   * DISTRICT TAG
-   * =====================================================
-   */
-
   function promptDistrictTag(
     errorMessage = ''
   ) {
-
     var doneButtonHtml =
       chromebookCount >= 1
         ? `
@@ -851,18 +605,15 @@
     showModal(
       modalHtml,
       function (districtTag) {
-
         if (
           districtTag.trim() === ''
         ) {
-
           districtTag = 'N/A';
 
         } else if (
           districtTag.startsWith('0') &&
           districtTag.length < 9
         ) {
-
           promptSerialNumber(
             districtTag
           );
@@ -870,7 +621,6 @@
           return;
 
         } else {
-
           return promptDistrictTag(
             'District Tag must start with a "0" and be less than 9 characters.'
           );
@@ -879,22 +629,14 @@
         promptSerialNumber(
           districtTag
         );
-
       }
     );
   }
-
-  /*
-   * =====================================================
-   * SERIAL NUMBER
-   * =====================================================
-   */
 
   function promptSerialNumber(
     districtTag,
     errorMessage = ''
   ) {
-
     const errorMessageHtml =
       errorMessage
         ? `
@@ -961,11 +703,9 @@
       </div>
       `,
       function (serialInput) {
-
         if (
           serialInput.trim() === ''
         ) {
-
           console.log(
             '[Serial] blank -> N/A, moving to model prompt'
           );
@@ -983,7 +723,6 @@
             .trim();
 
         try {
-
           const u =
             new URL(cleaned);
 
@@ -995,7 +734,6 @@
             cleaned;
 
         } catch (_) {
-
           const parts =
             cleaned.split('/');
 
@@ -1026,7 +764,6 @@
         if (
           /^[NMY]/.test(cleaned)
         ) {
-
           console.log(
             '[Serial] accepted -> next prompt'
           );
@@ -1037,7 +774,6 @@
           );
 
         } else {
-
           console.warn(
             '[Serial] invalid prefix -> re-prompt'
           );
@@ -1046,54 +782,52 @@
             districtTag,
             'Serial number must start with N, M, or Y.'
           );
-
         }
-
       }
     );
   }
 
-  /*
-   * =====================================================
-   * MODEL DETECTION
-   * =====================================================
-   */
-
   function determineModelNumber(serialNumber) {
+    if (!serialNumber) return '';
 
-  if (!serialNumber) return '';
+    const serial =
+      serialNumber.toUpperCase();
 
-  const serial = serialNumber.toUpperCase();
+    const prefix5 =
+      serial.substring(0, 5);
 
-  const prefix5 =
-    serial.substring(0, 5);
+    const map5 = {
+      'NXHPW': 'R752T',
+      'NXGPZ': 'R751T',
+      'NXA8Z': 'R753T',
+      'NXH8V': 'C733',
+      'NXH8Y': 'C851',
+      'M2NXY': 'C204M',
+      'M1NXV': 'C204M',
+      'M2NXC': 'C204M'
+    };
 
-  const map5 = {
-    'NXHPW': 'R752T',
-    'NXGPZ': 'R751T',
-    'NXA8Z': 'R753T',
-    'NXH8V': 'C733',
-    'NXH8Y': 'C851',
-    'M2NXY': 'C204M',
-    'M1NXV': 'C204M',
-    'M2NXC': 'C204M'
-  };
+    /*
+     * NEW RULE:
+     * ANY SERIAL STARTING WITH YX
+     * IS A LENOVO 300E YOGA
+     */
+    if (
+      serial.startsWith('YX')
+    ) {
+      return 'Lenovo 300e Yoga';
+    }
 
-  // Any serial beginning with YX
-  // is automatically a Lenovo 300e Yoga
-  if (serial.startsWith('YX')) {
-    return 'Lenovo 300e Yoga';
+    return (
+      map5[prefix5] ||
+      ''
+    );
   }
-
-  return map5[prefix5] || '';
-}
-  
 
   function promptModelNumber(
     districtTag,
     serialNumber
   ) {
-
     const autoSelectedModel =
       determineModelNumber(
         serialNumber
@@ -1102,7 +836,6 @@
     if (
       autoSelectedModel
     ) {
-
       chromebooks.push({
         districtTag,
         serialNumber,
@@ -1115,7 +848,6 @@
       promptDistrictTag();
 
     } else {
-
       showModal(
         `
         <div class="modal-body">
@@ -1164,18 +896,15 @@
         </div>
         `,
         function (modelNumber) {
-
           if (
             modelNumber.trim() === ''
           ) {
-
             promptModelNumber(
               districtTag,
               serialNumber
             );
 
           } else {
-
             chromebooks.push({
               districtTag,
               serialNumber,
@@ -1186,26 +915,16 @@
             chromebookCount++;
 
             promptDistrictTag();
-
           }
-
         }
       );
     }
   }
 
-  /*
-   * =====================================================
-   * REVIEW DEVICES
-   * =====================================================
-   */
-
   function displayCollectedInfo() {
-
     if (
       chromebookCount === 0
     ) {
-
       alert(
         'No Chromebooks To Submit.'
       );
@@ -1214,13 +933,7 @@
     }
 
     var info = `
-      <div
-        class="modal-body ${
-          chromebooks.length > 5
-            ? 'scrollable'
-            : ''
-        }"
-      >
+      <div class="modal-body review-modal-body">
 
         <button
           id="closeButton"
@@ -1371,21 +1084,35 @@
 
         </ul>
 
-        <div class="button-container">
+        <div class="button-container review-action-bar">
 
-          <button
-            id="addButton"
-            class="modal-button"
-          >
-            + Add More
-          </button>
+          <div class="review-device-count">
+            ${chromebookCount}
+            ${
+              chromebookCount === 1
+                ? 'device'
+                : 'devices'
+            }
+            ready
+          </div>
 
-          <button
-            id="nextButton"
-            class="modal-button sd-primary"
-          >
-            Submit Tickets →
-          </button>
+          <div class="review-action-buttons">
+
+            <button
+              id="addButton"
+              class="modal-button"
+            >
+              + Add More
+            </button>
+
+            <button
+              id="nextButton"
+              class="modal-button sd-primary"
+            >
+              Submit Tickets →
+            </button>
+
+          </div>
 
         </div>
 
@@ -1402,7 +1129,6 @@
       .addEventListener(
         'click',
         function () {
-
           const modal =
             document.querySelector(
               'div.modal'
@@ -1412,7 +1138,6 @@
             modal &&
             modal.parentNode
           ) {
-
             modal.parentNode
               .removeChild(modal);
           }
@@ -1425,7 +1150,6 @@
           if (
             modalBackground
           ) {
-
             modalBackground
               .parentNode
               .removeChild(
@@ -1442,7 +1166,6 @@
       .addEventListener(
         'click',
         function () {
-
           const modal =
             document.querySelector(
               'div.modal'
@@ -1452,7 +1175,6 @@
             modal &&
             modal.parentNode
           ) {
-
             modal.parentNode
               .removeChild(modal);
           }
@@ -1465,14 +1187,12 @@
           if (
             modalBackground
           ) {
-
             modalBackground
               .parentNode
               .removeChild(
                 modalBackground
               );
           }
-
         }
       );
 
@@ -1482,13 +1202,10 @@
       );
 
     if (nextButton) {
-
       nextButton.addEventListener(
         'click',
         function () {
-
           openNewTicketPage();
-
         }
       );
     }
@@ -1499,11 +1216,9 @@
       )
       .forEach(
         button => {
-
           button.addEventListener(
             'click',
             function () {
-
               const index =
                 this.getAttribute(
                   'data-index'
@@ -1517,7 +1232,6 @@
               if (
                 modalBackground
               ) {
-
                 modalBackground
                   .parentNode
                   .removeChild(
@@ -1528,10 +1242,8 @@
               editChromebook(
                 index
               );
-
             }
           );
-
         }
       );
 
@@ -1541,11 +1253,9 @@
       )
       .forEach(
         button => {
-
           button.addEventListener(
             'click',
             function () {
-
               const index =
                 this.getAttribute(
                   'data-index'
@@ -1559,7 +1269,6 @@
               if (
                 modalBackground
               ) {
-
                 modalBackground
                   .parentNode
                   .removeChild(
@@ -1570,22 +1279,13 @@
               deleteChromebook(
                 index
               );
-
             }
           );
-
         }
       );
   }
 
-  /*
-   * =====================================================
-   * EDIT
-   * =====================================================
-   */
-
   function editChromebook(index) {
-
     const chromebook =
       chromebooks[index];
 
@@ -1598,7 +1298,6 @@
       existingModal &&
       existingModal.parentNode
     ) {
-
       existingModal.parentNode
         .removeChild(
           existingModal
@@ -1699,7 +1398,6 @@
       .addEventListener(
         'click',
         function () {
-
           const updatedDistrictTag =
             document
               .getElementById(
@@ -1722,7 +1420,6 @@
               .value;
 
           chromebooks[index] = {
-
             districtTag:
               updatedDistrictTag,
 
@@ -1731,7 +1428,6 @@
 
             modelNumber:
               updatedModelNumber
-
           };
 
           var modalBackground =
@@ -1742,7 +1438,6 @@
           if (
             modalBackground
           ) {
-
             modalBackground
               .parentNode
               .removeChild(
@@ -1759,7 +1454,6 @@
             modal &&
             modal.parentNode
           ) {
-
             modal.parentNode
               .removeChild(modal);
           }
@@ -1775,7 +1469,6 @@
       .addEventListener(
         'click',
         function () {
-
           var modalBackground =
             document.querySelector(
               '.modal-background'
@@ -1784,24 +1477,15 @@
           if (
             modalBackground
           ) {
-
             modalBackground.remove();
           }
 
           displayCollectedInfo();
-
         }
       );
   }
 
-  /*
-   * =====================================================
-   * DELETE
-   * =====================================================
-   */
-
   function deleteChromebook(index) {
-
     const confirmDelete =
       confirm(
         'Are you sure you want to delete this Chromebook?'
@@ -1810,7 +1494,6 @@
     if (
       confirmDelete
     ) {
-
       chromebooks.splice(
         index,
         1
@@ -1826,7 +1509,6 @@
       if (
         modalBackground
       ) {
-
         modalBackground
           .parentNode
           .removeChild(
@@ -1838,14 +1520,7 @@
     }
   }
 
-  /*
-   * =====================================================
-   * SCHOOL DUDE SUBMISSION
-   * =====================================================
-   */
-
   function openNewTicketPage() {
-
     var button =
       document.querySelector(
         'button#New'
@@ -1857,12 +1532,10 @@
 
     setTimeout(
       function () {
-
         submitChromebooks(
           0,
           selectedSchool
         );
-
       },
       1000
     );
@@ -1872,7 +1545,6 @@
     index,
     selectedSchool
   ) {
-
     if (
       submissionInProgress
     ) {
@@ -1889,7 +1561,6 @@
     if (
       !loggedInUserEmail
     ) {
-
       console.error(
         'Failed to extract logged-in user email. Aborting submission.'
       );
@@ -1901,7 +1572,6 @@
       index <
       chromebooks.length
     ) {
-
       submissionInProgress =
         true;
 
@@ -1921,7 +1591,6 @@
         loggedInUserEmail,
         selectedSchool,
         function () {
-
           console.log(
             'Form fields filled for Chromebook ' +
             (index + 1)
@@ -1930,7 +1599,6 @@
           submitForm(
             index,
             function () {
-
               console.log(
                 'Form submitted for Chromebook ' +
                 (index + 1)
@@ -1940,15 +1608,12 @@
                 index + 1 <
                 chromebooks.length
               ) {
-
                 setTimeout(
                   function () {
-
                     openNewTicketPage();
 
                     setTimeout(
                       function () {
-
                         submissionInProgress =
                           false;
 
@@ -1956,17 +1621,14 @@
                           index + 1,
                           selectedSchool
                         );
-
                       },
                       1000
                     );
-
                   },
                   500
                 );
 
               } else {
-
                 console.log(
                   'All Chromebooks submitted. Showing final summary.'
                 );
@@ -1977,25 +1639,15 @@
 
                 submissionInProgress =
                   false;
-
               }
-
             }
           );
-
         }
       );
     }
   }
 
-  /*
-   * =====================================================
-   * SUBMISSION OVERLAY
-   * =====================================================
-   */
-
   function showOverlay(message) {
-
     hideOverlay();
 
     var overlay =
@@ -2029,35 +1681,25 @@
   }
 
   function hideOverlay() {
-
     var overlay =
       document.querySelector(
         '.overlay'
       );
 
     if (overlay) {
-
       document.body.removeChild(
         overlay
       );
     }
   }
 
-  /*
-   * =====================================================
-   * LOGGED IN EMAIL
-   * =====================================================
-   */
-
   function extractLoggedInUserEmail() {
-
     const el =
       document.querySelector(
         '.xtb-text span'
       );
 
     if (!el) {
-
       console.error(
         'Logged-in user element not found.'
       );
@@ -2074,7 +1716,6 @@
       );
 
     if (!match) {
-
       console.error(
         'No email found in logged-in user text:',
         text
@@ -2086,25 +1727,17 @@
     return match[0];
   }
 
-  /*
-   * =====================================================
-   * FILL SCHOOLDUDE FORM
-   * =====================================================
-   */
-
   function fillOutFormFields(
     chromebookData,
     loggedInUserEmail,
     selectedSchool,
     callback
   ) {
-
     if (
       !chromebookData ||
       !loggedInUserEmail ||
       !selectedSchool
     ) {
-
       console.error(
         'Missing required parameters for filling out the form.'
       );
@@ -2115,11 +1748,9 @@
     function executeStepsSequentially(
       stepIndex
     ) {
-
       const steps = [
 
         () => {
-
           console.log(
             'Selecting "Assigned To" user...'
           );
@@ -2133,11 +1764,9 @@
               ),
             500
           );
-
         },
 
         () => {
-
           console.log(
             'Selecting "Location" based on school...'
           );
@@ -2153,11 +1782,9 @@
               ),
             500
           );
-
         },
 
         () => {
-
           console.log(
             'Selecting "Work Queue" based on school...'
           );
@@ -2173,11 +1800,9 @@
               ),
             500
           );
-
         },
 
         () => {
-
           console.log(
             'Selecting "Chromebook" as work type...'
           );
@@ -2191,11 +1816,9 @@
               ),
             500
           );
-
         },
 
         () => {
-
           console.log(
             'Filling out the text area with Chromebook data...'
           );
@@ -2208,7 +1831,6 @@
           if (
             !textareaElement
           ) {
-
             console.error(
               'Text area for description not found.'
             );
@@ -2235,10 +1857,8 @@
             typeof callback ===
             'function'
           ) {
-
             callback();
           }
-
         }
 
       ];
@@ -2247,11 +1867,9 @@
         stepIndex <
         steps.length
       ) {
-
         steps[
           stepIndex
         ]();
-
       }
     }
 
@@ -2260,14 +1878,7 @@
     );
   }
 
-  /*
-   * =====================================================
-   * ASSIGNED TO
-   * =====================================================
-   */
-
   function selectAssignedToUser() {
-
     const loggedInUserEmail =
       extractLoggedInUserEmail();
 
@@ -2286,7 +1897,6 @@
     if (
       !assignedToDropdownTrigger
     ) {
-
       console.error(
         '"Assigned To" dropdown trigger not found.'
       );
@@ -2298,7 +1908,6 @@
 
     setTimeout(
       () => {
-
         const dropdownContainer =
           document.getElementById(
             'base_inc_incident_assigned_to-combo-list'
@@ -2307,7 +1916,6 @@
         if (
           !dropdownContainer
         ) {
-
           console.error(
             'Dropdown list container not found.'
           );
@@ -2326,7 +1934,6 @@
         if (
           dropdownOptions.length === 0
         ) {
-
           console.error(
             'No options found in the "Assigned To" dropdown menu.'
           );
@@ -2352,7 +1959,6 @@
         if (
           matchingOption
         ) {
-
           const parentOption =
             matchingOption.closest(
               '.x-combo-list-item'
@@ -2390,28 +1996,18 @@
           );
 
         } else {
-
           console.warn(
             `No matching option found for email: ${loggedInUserEmail}`
           );
-
         }
-
       },
       500
     );
   }
 
-  /*
-   * =====================================================
-   * LOCATION
-   * =====================================================
-   */
-
   function selectLocationBySchool(
     selectedSchool
   ) {
-
     const locationDropdownTrigger =
       document
         .getElementsByClassName(
@@ -2421,7 +2017,6 @@
     if (
       !locationDropdownTrigger
     ) {
-
       console.error(
         '"Location" dropdown trigger not found.'
       );
@@ -2433,7 +2028,6 @@
 
     setTimeout(
       () => {
-
         const dropdownContainer =
           document.getElementById(
             'base_inc_incident_rte_location-combo-list'
@@ -2442,7 +2036,6 @@
         if (
           !dropdownContainer
         ) {
-
           console.error(
             'Dropdown list container not found for "Location".'
           );
@@ -2461,7 +2054,6 @@
         if (
           dropdownOptions.length === 0
         ) {
-
           console.error(
             'No options found in the "Location" dropdown menu.'
           );
@@ -2472,7 +2064,6 @@
         const matchingOption =
           dropdownOptions.find(
             option => {
-
               const optionName =
                 option
                   .getAttribute(
@@ -2485,22 +2076,18 @@
                 selectedSchool ===
                 'Dinuba Intermediate School'
               ) {
-
                 return optionName.includes(
                   'dinuba intermediate'
                 );
-
               }
 
               if (
                 selectedSchool ===
                 'Dinuba High School'
               ) {
-
                 return optionName.includes(
                   'dinuba high'
                 );
-
               }
 
               return optionName.startsWith(
@@ -2508,14 +2095,12 @@
                   .split(' ')[0]
                   .toLowerCase()
               );
-
             }
           );
 
         if (
           matchingOption
         ) {
-
           const parentOption =
             matchingOption.closest(
               '.x-combo-list-item'
@@ -2553,28 +2138,18 @@
           );
 
         } else {
-
           console.warn(
             `No matching location option found for the school: ${selectedSchool}`
           );
-
         }
-
       },
       500
     );
   }
 
-  /*
-   * =====================================================
-   * WORK QUEUE
-   * =====================================================
-   */
-
   function selectWorkQueueBySchool(
     selectedSchool
   ) {
-
     const workQueueDropdownTrigger =
       document
         .getElementsByClassName(
@@ -2584,7 +2159,6 @@
     if (
       !workQueueDropdownTrigger
     ) {
-
       console.error(
         '"Work Queue" dropdown trigger not found.'
       );
@@ -2596,7 +2170,6 @@
 
     setTimeout(
       () => {
-
         const dropdownContainer =
           document.getElementById(
             'base_inc_incident_work_queue-combo-list'
@@ -2605,7 +2178,6 @@
         if (
           !dropdownContainer
         ) {
-
           console.error(
             'Dropdown list container not found for "Work Queue".'
           );
@@ -2624,7 +2196,6 @@
         if (
           dropdownOptions.length === 0
         ) {
-
           console.error(
             'No options found in the "Work Queue" dropdown menu.'
           );
@@ -2635,7 +2206,6 @@
         const matchingOption =
           dropdownOptions.find(
             option => {
-
               const optionName =
                 option
                   .getAttribute(
@@ -2648,22 +2218,18 @@
                 selectedSchool ===
                 'Dinuba Intermediate School'
               ) {
-
                 return optionName.includes(
                   'dinuba intermediate'
                 );
-
               }
 
               if (
                 selectedSchool ===
                 'Dinuba High School'
               ) {
-
                 return optionName.includes(
                   'dinuba high'
                 );
-
               }
 
               return optionName.startsWith(
@@ -2671,14 +2237,12 @@
                   .split(' ')[0]
                   .toLowerCase()
               );
-
             }
           );
 
         if (
           matchingOption
         ) {
-
           const parentOption =
             matchingOption.closest(
               '.x-combo-list-item'
@@ -2716,26 +2280,16 @@
           );
 
         } else {
-
           console.warn(
             `No matching work queue option found for the school: ${selectedSchool}`
           );
-
         }
-
       },
       500
     );
   }
 
-  /*
-   * =====================================================
-   * WORK TYPE
-   * =====================================================
-   */
-
   function selectWorkTypeAsChromebook() {
-
     const workTypeDropdownTrigger =
       document
         .getElementsByClassName(
@@ -2745,7 +2299,6 @@
     if (
       !workTypeDropdownTrigger
     ) {
-
       console.error(
         '"Work Type" dropdown trigger not found.'
       );
@@ -2757,7 +2310,6 @@
 
     setTimeout(
       () => {
-
         const dropdownContainer =
           document.getElementById(
             'base_inc_incident_work_type-combo-list'
@@ -2766,7 +2318,6 @@
         if (
           !dropdownContainer
         ) {
-
           console.error(
             'Dropdown list container not found for "Work Type".'
           );
@@ -2785,7 +2336,6 @@
         if (
           dropdownOptions.length === 0
         ) {
-
           console.error(
             'No options found in the "Work Type" dropdown menu.'
           );
@@ -2808,7 +2358,6 @@
         if (
           matchingOption
         ) {
-
           const parentOption =
             matchingOption.closest(
               '.x-combo-list-item'
@@ -2846,29 +2395,19 @@
           );
 
         } else {
-
           console.warn(
             'No matching option found for "Chromebook".'
           );
-
         }
-
       },
       500
     );
   }
 
-  /*
-   * =====================================================
-   * TEXT AREA
-   * =====================================================
-   */
-
   function triggerTextareaInput(
     textareaElement,
     value
   ) {
-
     var clickEvent =
       new MouseEvent(
         'click',
@@ -2909,17 +2448,10 @@
     );
   }
 
-  /*
-   * =====================================================
-   * SAVE
-   * =====================================================
-   */
-
   function submitForm(
     currentIndex,
     callback
   ) {
-
     var saveButton =
       document.getElementById(
         'Save'
@@ -2928,9 +2460,7 @@
     if (
       saveButton
     ) {
-
       try {
-
         saveButton.click();
 
         console.log(
@@ -2940,7 +2470,6 @@
 
         setTimeout(
           function () {
-
             var errorLabel =
               Array.from(
                 document
@@ -2958,7 +2487,6 @@
             if (
               errorLabel
             ) {
-
               console.error(
                 'Error detected: ' +
                 errorLabel.textContent
@@ -2972,43 +2500,34 @@
               location.reload();
 
             } else {
-
               if (
                 typeof callback ===
                 'function'
               ) {
-
                 callback();
               }
-
             }
-
           },
           1000
         );
 
       } catch (error) {
-
         console.error(
           'Error clicking the "Save" button:',
           error
         );
-
       }
 
     } else {
-
       console.log(
         'Save button not found. Form not submitted.'
       );
-
     }
   }
 
   window.addEventListener(
     'load',
     function () {
-
       const storedIndex =
         localStorage.getItem(
           'currentIndex'
@@ -3017,7 +2536,6 @@
       if (
         storedIndex
       ) {
-
         const index =
           parseInt(
             storedIndex,
@@ -3033,26 +2551,16 @@
           selectedSchool
         );
       }
-
     }
   );
 
-  /*
-   * =====================================================
-   * FINAL SUMMARY
-   * =====================================================
-   */
-
   function displaySummary() {
-
     const summaryContent = `
-      <div
-        class="modal-body ${
-          chromebooks.length > 5
-            ? 'scrollable'
-            : ''
-        }"
-      >
+      <div class="modal-body ${
+        chromebooks.length > 5
+          ? 'scrollable'
+          : ''
+      }">
 
         <button
           id="closeButton"
@@ -3179,7 +2687,6 @@
       .addEventListener(
         'click',
         function () {
-
           const modal =
             document.querySelector(
               'div.modal'
@@ -3189,7 +2696,6 @@
             modal &&
             modal.parentNode
           ) {
-
             modal.parentNode
               .removeChild(modal);
           }
@@ -3202,7 +2708,6 @@
           if (
             modalBackground
           ) {
-
             modalBackground
               .parentNode
               .removeChild(
@@ -3227,7 +2732,6 @@
       .addEventListener(
         'click',
         function () {
-
           const modal =
             document.querySelector(
               'div.modal'
@@ -3237,7 +2741,6 @@
             modal &&
             modal.parentNode
           ) {
-
             modal.parentNode
               .removeChild(modal);
           }
@@ -3250,26 +2753,17 @@
           if (
             modalBackground
           ) {
-
             modalBackground
               .parentNode
               .removeChild(
                 modalBackground
               );
           }
-
         }
       );
   }
 
-  /*
-   * =====================================================
-   * PREMIUM STYLES
-   * =====================================================
-   */
-
   function injectStyles() {
-
     const style =
       document.createElement(
         'style'
@@ -3281,87 +2775,39 @@
     style.innerHTML = `
 
       :root {
-
-        --sd-navy:
-          #0b1f3a;
-
-        --sd-blue:
-          #2563eb;
-
-        --sd-blue-dark:
-          #1d4ed8;
-
-        --sd-cyan:
-          #38bdf8;
-
-        --sd-text:
-          #172033;
-
-        --sd-muted:
-          #697386;
-
-        --sd-border:
-          rgba(
-            15,
-            23,
-            42,
-            .10
-          );
-
-        --sd-soft:
-          #f6f8fb;
-
-        --sd-danger:
-          #dc2626;
-
-        --sd-success:
-          #16a34a;
+        --sd-navy: #0b1f3a;
+        --sd-blue: #2563eb;
+        --sd-blue-dark: #1d4ed8;
+        --sd-cyan: #38bdf8;
+        --sd-text: #172033;
+        --sd-muted: #697386;
+        --sd-border: rgba(15,23,42,.10);
+        --sd-soft: #f6f8fb;
+        --sd-danger: #dc2626;
+        --sd-success: #16a34a;
       }
 
       body.sd-modal-open {
-
-        overflow:
-          hidden !important;
-
+        overflow: hidden !important;
       }
 
-      /*
-       * ===============================================
-       * BLURRED BACKDROP
-       * ===============================================
-       */
-
       .modal-background {
+        position: fixed !important;
+        inset: 0 !important;
 
-        position:
-          fixed !important;
+        width: 100vw !important;
+        height: 100vh !important;
 
-        inset:
-          0 !important;
+        display: flex !important;
 
-        width:
-          100vw !important;
+        align-items: center !important;
+        justify-content: center !important;
 
-        height:
-          100vh !important;
+        padding: 24px !important;
 
-        display:
-          flex !important;
+        box-sizing: border-box !important;
 
-        align-items:
-          center !important;
-
-        justify-content:
-          center !important;
-
-        padding:
-          24px !important;
-
-        box-sizing:
-          border-box !important;
-
-        z-index:
-          2147483000 !important;
+        z-index: 2147483000 !important;
 
         background:
           rgba(
@@ -3381,8 +2827,7 @@
           saturate(130%)
           !important;
 
-        opacity:
-          0;
+        opacity: 0;
 
         transition:
           opacity
@@ -3391,20 +2836,10 @@
       }
 
       .modal-background.is-visible {
-
-        opacity:
-          1;
-
+        opacity: 1;
       }
 
-      /*
-       * ===============================================
-       * MODAL
-       * ===============================================
-       */
-
       .sd-modal {
-
         width:
           min(
             560px,
@@ -3484,8 +2919,7 @@
             .985
           );
 
-        opacity:
-          0;
+        opacity: 0;
 
         transition:
           transform
@@ -3517,20 +2951,15 @@
       }
 
       .sd-modal.is-visible {
-
         transform:
           translateY(0)
           scale(1);
 
-        opacity:
-          1;
-
+        opacity: 1;
       }
 
       .sd-modal-accent {
-
-        height:
-          4px;
+        height: 4px;
 
         background:
           linear-gradient(
@@ -3542,20 +2971,14 @@
               --sd-cyan
             )
           );
-
       }
 
       .modal-content {
-
-        width:
-          100%;
-
+        width: 100%;
       }
 
       .modal-body {
-
-        position:
-          relative;
+        position: relative;
 
         box-sizing:
           border-box;
@@ -3567,11 +2990,9 @@
 
         text-align:
           left;
-
       }
 
       .modal-body.scrollable {
-
         max-height:
           min(
             690px,
@@ -3585,17 +3006,9 @@
 
         scrollbar-width:
           thin;
-
       }
 
-      /*
-       * ===============================================
-       * HEADINGS
-       * ===============================================
-       */
-
       .sd-kicker {
-
         display:
           inline-flex;
 
@@ -3624,11 +3037,9 @@
           var(
             --sd-blue
           );
-
       }
 
       .sd-kicker::before {
-
         content:
           '';
 
@@ -3654,11 +3065,9 @@
             235,
             .10
           );
-
       }
 
       .modal-body h2 {
-
         margin:
           0
           50px
@@ -3679,11 +3088,9 @@
 
         color:
           #0f172a !important;
-
       }
 
       .modal-body h3 {
-
         margin:
           18px
           0
@@ -3697,11 +3104,9 @@
 
         color:
           #334155 !important;
-
       }
 
       .sd-subtitle {
-
         margin:
           0
           0
@@ -3720,24 +3125,14 @@
 
         line-height:
           1.55;
-
       }
 
-      /*
-       * ===============================================
-       * INPUTS
-       * ===============================================
-       */
-
       .sd-field-group {
-
         margin-top:
           18px;
-
       }
 
       .modal-body label {
-
         display:
           block;
 
@@ -3757,11 +3152,9 @@
 
         font-weight:
           700;
-
       }
 
       .sd-helper {
-
         margin-top:
           6px;
 
@@ -3770,18 +3163,14 @@
 
         font-size:
           11.5px;
-
       }
 
       .sd-input-shell {
-
         position:
           relative;
-
       }
 
       .sd-input-icon {
-
         position:
           absolute;
 
@@ -3807,23 +3196,19 @@
 
         pointer-events:
           none;
-
       }
 
       .sd-input-shell.is-readonly
       .sd-input-icon {
-
         color:
           #16a34a;
 
         font-size:
           10px;
-
       }
 
       .modal-select,
       .modal-input {
-
         width:
           100% !important;
 
@@ -3886,7 +3271,6 @@
           background
           .15s
           ease !important;
-
       }
 
       .sd-input-shell
@@ -3894,25 +3278,20 @@
 
       .sd-input-shell
       .modal-input {
-
         padding-left:
           38px !important;
-
       }
 
       .modal-input[readonly] {
-
         background:
           #f7f9fc !important;
 
         color:
           #475569 !important;
-
       }
 
       .modal-select:focus,
       .modal-input:focus {
-
         border-color:
           rgba(
             37,
@@ -3932,17 +3311,9 @@
 
         background:
           #fff !important;
-
       }
 
-      /*
-       * ===============================================
-       * BUTTONS
-       * ===============================================
-       */
-
       .button-container {
-
         display:
           flex;
 
@@ -3957,11 +3328,9 @@
 
         margin-top:
           24px;
-
       }
 
       .modal-button {
-
         min-height:
           42px;
 
@@ -4004,29 +3373,23 @@
           border-color
           .15s
           ease;
-
       }
 
       .modal-button:hover {
-
         transform:
           translateY(
             -1px
           );
-
       }
 
       .modal-button:active {
-
         transform:
           translateY(0);
-
       }
 
       .modal-button:not(
         .sd-icon-button
       ) {
-
         background:
           #eef2f7;
 
@@ -4035,21 +3398,17 @@
 
         border-color:
           #dde3eb;
-
       }
 
       .modal-button:not(
         .sd-icon-button
       ):hover {
-
         background:
           #e7edf5;
-
       }
 
       .modal-button.sd-primary,
       #nextButton.modal-button {
-
         background:
           linear-gradient(
             135deg,
@@ -4078,12 +3437,10 @@
             235,
             .22
           ) !important;
-
       }
 
       .modal-button.sd-primary:hover,
       #nextButton.modal-button:hover {
-
         background:
           linear-gradient(
             135deg,
@@ -4101,13 +3458,11 @@
             235,
             .28
           ) !important;
-
       }
 
       #doneButton.modal-button,
       #addButton.modal-button,
       #addMoreButton.modal-button {
-
         background:
           #0f172a !important;
 
@@ -4116,18 +3471,10 @@
 
         border-color:
           #0f172a !important;
-
       }
-
-      /*
-       * ===============================================
-       * CLOSE BUTTON
-       * ===============================================
-       */
 
       .sd-icon-button,
       #closeButton.modal-button {
-
         position:
           absolute !important;
 
@@ -4184,12 +3531,10 @@
 
         z-index:
           4;
-
       }
 
       .sd-icon-button:hover,
       #closeButton.modal-button:hover {
-
         background:
           #fff !important;
 
@@ -4198,17 +3543,9 @@
 
         border-color:
           #cbd5e1 !important;
-
       }
 
-      /*
-       * ===============================================
-       * ERRORS
-       * ===============================================
-       */
-
       .error-message {
-
         margin:
           0
           0
@@ -4249,17 +3586,9 @@
 
         font-weight:
           650;
-
       }
 
-      /*
-       * ===============================================
-       * SUMMARY CARDS
-       * ===============================================
-       */
-
       .sd-summary-grid {
-
         display:
           grid;
 
@@ -4276,11 +3605,9 @@
           18px
           0
           20px;
-
       }
 
       .sd-summary-card {
-
         padding:
           13px
           14px;
@@ -4294,11 +3621,9 @@
 
         background:
           #f8fafc;
-
       }
 
       .sd-summary-card span {
-
         display:
           block;
 
@@ -4319,11 +3644,9 @@
 
         text-transform:
           uppercase;
-
       }
 
       .sd-summary-card strong {
-
         display:
           block;
 
@@ -4341,17 +3664,9 @@
 
         white-space:
           nowrap;
-
       }
 
-      /*
-       * ===============================================
-       * DEVICE LIST
-       * ===============================================
-       */
-
       .modal-body ul {
-
         list-style:
           none;
 
@@ -4362,12 +3677,10 @@
 
         padding:
           0;
-
       }
 
       .modal-body ul li,
       .chromebook-item {
-
         position:
           relative;
 
@@ -4413,32 +3726,26 @@
             42,
             .025
           );
-
       }
 
       .modal-body ul li:hover,
       .chromebook-item:hover {
-
         border-color:
           #d7dee8;
 
         background:
           #fff;
-
       }
 
       .modal-body strong {
-
         color:
           #1e293b;
 
         font-weight:
           700;
-
       }
 
       .sd-device-number {
-
         margin-bottom:
           7px;
 
@@ -4453,17 +3760,9 @@
 
         letter-spacing:
           .08em;
-
       }
 
-      /*
-       * ===============================================
-       * EDIT / DELETE
-       * ===============================================
-       */
-
       .button-group {
-
         position:
           absolute;
 
@@ -4478,12 +3777,10 @@
 
         gap:
           6px;
-
       }
 
       .edit-button,
       .delete-button {
-
         display:
           inline-flex;
 
@@ -4512,11 +3809,9 @@
           all
           .14s
           ease;
-
       }
 
       .edit-button {
-
         border:
           1px solid
           #dbe5ff;
@@ -4526,21 +3821,17 @@
 
         color:
           #2563eb;
-
       }
 
       .edit-button:hover {
-
         background:
           #e3eeff;
 
         border-color:
           #c4d7ff;
-
       }
 
       .delete-button {
-
         border:
           1px solid
           #fee2e2;
@@ -4550,27 +3841,17 @@
 
         color:
           #dc2626;
-
       }
 
       .delete-button:hover {
-
         background:
           #ffe4e6;
 
         border-color:
           #fecdd3;
-
       }
 
-      /*
-       * ===============================================
-       * SUCCESS
-       * ===============================================
-       */
-
       .sd-success-icon {
-
         display:
           flex;
 
@@ -4612,17 +3893,9 @@
             74,
             .07
           );
-
       }
 
-      /*
-       * ===============================================
-       * DISABLED
-       * ===============================================
-       */
-
       .disabled {
-
         opacity:
           .55;
 
@@ -4631,17 +3904,9 @@
 
         pointer-events:
           none;
-
       }
 
-      /*
-       * ===============================================
-       * SUBMISSION OVERLAY
-       * ===============================================
-       */
-
       .overlay {
-
         position:
           fixed;
 
@@ -4681,11 +3946,9 @@
 
         color:
           #fff;
-
       }
 
       .overlay-message {
-
         min-width:
           320px;
 
@@ -4736,11 +3999,9 @@
 
         text-align:
           center;
-
       }
 
       .overlay-message::before {
-
         content:
           '';
 
@@ -4778,11 +4039,9 @@
           .8s
           linear
           infinite;
-
       }
 
       .sd-overlay-kicker {
-
         margin-bottom:
           8px;
 
@@ -4797,11 +4056,9 @@
 
         font-weight:
           900;
-
       }
 
       .sd-overlay-helper {
-
         margin-top:
           8px;
 
@@ -4813,42 +4070,162 @@
 
         font-weight:
           500;
-
-      }
-
-      @keyframes sdSpin {
-
-        to {
-
-          transform:
-            rotate(
-              360deg
-            );
-
-        }
-
       }
 
       /*
        * ===============================================
-       * MOBILE
+       * REVIEW SCREEN
+       * FIXED / STICKY ACTION BAR
        * ===============================================
        */
+
+      .review-modal-body {
+        max-height:
+          calc(
+            100vh - 80px
+          );
+
+        overflow-y:
+          auto !important;
+
+        padding-bottom:
+          100px !important;
+
+        scrollbar-width:
+          thin;
+      }
+
+      .review-action-bar {
+        position:
+          sticky !important;
+
+        bottom:
+          -1px;
+
+        z-index:
+          20;
+
+        display:
+          flex;
+
+        align-items:
+          center;
+
+        justify-content:
+          space-between;
+
+        gap:
+          16px;
+
+        margin-left:
+          -34px;
+
+        margin-right:
+          -34px;
+
+        margin-bottom:
+          -100px;
+
+        padding:
+          16px
+          34px
+          22px;
+
+        background:
+          linear-gradient(
+            180deg,
+            rgba(
+              255,
+              255,
+              255,
+              .82
+            )
+            0%,
+            rgba(
+              255,
+              255,
+              255,
+              .97
+            )
+            35%,
+            rgba(
+              255,
+              255,
+              255,
+              1
+            )
+            100%
+          );
+
+        -webkit-backdrop-filter:
+          blur(14px);
+
+        backdrop-filter:
+          blur(14px);
+
+        border-top:
+          1px solid
+          rgba(
+            15,
+            23,
+            42,
+            .08
+          );
+
+        box-shadow:
+          0 -8px 24px
+          rgba(
+            15,
+            23,
+            42,
+            .06
+          );
+      }
+
+      .review-device-count {
+        color:
+          #64748b;
+
+        font-size:
+          12px;
+
+        font-weight:
+          700;
+
+        white-space:
+          nowrap;
+      }
+
+      .review-action-buttons {
+        display:
+          flex;
+
+        align-items:
+          center;
+
+        gap:
+          10px;
+      }
+
+      @keyframes sdSpin {
+        to {
+          transform:
+            rotate(
+              360deg
+            );
+        }
+      }
 
       @media (
         max-width:
         620px
       ) {
-
         .modal-background {
-
           padding:
             12px !important;
-
         }
 
         .sd-modal {
-
           width:
             calc(
               100vw - 24px
@@ -4856,42 +4233,67 @@
 
           border-radius:
             18px !important;
-
         }
 
         .modal-body {
-
           padding:
             28px
             22px
             24px;
-
         }
 
         .modal-body h2 {
-
           font-size:
             22px !important;
-
         }
 
         #closeButton.modal-button {
-
           top:
             16px !important;
 
           right:
             16px !important;
-
         }
 
         .sd-summary-grid {
-
           grid-template-columns:
             1fr;
-
         }
 
+        .review-action-bar {
+          margin-left:
+            -22px;
+
+          margin-right:
+            -22px;
+
+          padding:
+            14px
+            22px
+            18px;
+
+          flex-direction:
+            column;
+
+          align-items:
+            stretch;
+        }
+
+        .review-device-count {
+          text-align:
+            center;
+        }
+
+        .review-action-buttons {
+          width:
+            100%;
+        }
+
+        .review-action-buttons
+        .modal-button {
+          flex:
+            1;
+        }
       }
 
     `;

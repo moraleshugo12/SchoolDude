@@ -1059,44 +1059,35 @@
    * =====================================================
    */
 
-  function determineModelNumber(
-    serialNumber
-  ) {
+  function determineModelNumber(serialNumber) {
 
-    if (!serialNumber) return '';
+  if (!serialNumber) return '';
 
-    const prefix4 =
-      serialNumber
-        .substring(0, 4)
-        .toUpperCase();
+  const serial = serialNumber.toUpperCase();
 
-    const prefix5 =
-      serialNumber
-        .substring(0, 5)
-        .toUpperCase();
+  const prefix5 =
+    serial.substring(0, 5);
 
-    const map5 = {
-      'NXHPW': 'R752T',
-      'NXGPZ': 'R751T',
-      'NXA8Z': 'R753T',
-      'NXH8V': 'C733',
-      'NXH8Y': 'C851',
-      'M2NXY': 'C204M',
-      'M1NXV': 'C204M',
-      'M2NXC': 'C204M'
-    };
+  const map5 = {
+    'NXHPW': 'R752T',
+    'NXGPZ': 'R751T',
+    'NXA8Z': 'R753T',
+    'NXH8V': 'C733',
+    'NXH8Y': 'C851',
+    'M2NXY': 'C204M',
+    'M1NXV': 'C204M',
+    'M2NXC': 'C204M'
+  };
 
-    const map4 = {
-      'YX0B': 'Lenovo 300e Yoga',
-      'YXN0': 'Lenovo 300e Yoga'
-    };
-
-    return (
-      map5[prefix5] ||
-      map4[prefix4] ||
-      ''
-    );
+  // Any serial beginning with YX
+  // is automatically a Lenovo 300e Yoga
+  if (serial.startsWith('YX')) {
+    return 'Lenovo 300e Yoga';
   }
+
+  return map5[prefix5] || '';
+}
+  
 
   function promptModelNumber(
     districtTag,

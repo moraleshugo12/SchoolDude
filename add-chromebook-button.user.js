@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Chromebooks Button with Submission Process
 // @namespace    http://tampermonkey.net/
-// @version      1.6.2
+// @version      1.6.3
 // @description  Adds the "Add Chromebooks" button and starts the submission process when clicked on SchoolDude pages.
 // @author       You
 // @match        *://*.schooldude.com/*

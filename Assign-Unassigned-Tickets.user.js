@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Dinuba Help Desk - Assign Unassigned Tickets
 // @namespace    dinuba.helpdesk.assignment
-// @version      1.2.2
-// @description  Assign unassigned tickets by site and Chromebook repair responsibility, then Save.
+// @version      1.3.7
+// @description  Responsive assignment scan with confirmation before live saves.
 // @match        https://975.insight.schooldude.com/*
 // @run-at       document-idle
 // @grant        none
@@ -14,9 +14,14 @@
   window.__dinubaAssignTickets = true;
 
   const CONFIG = {
-    autoRun: true,
+    autoRun: false, // Only scan after clicking Assign Tickets; prevents background scans.
+    previewOnly: false, // Live assignments require the confirmation below.
     scanIntervalMs: 15000,
     sweepIntervalMs: 60000,
+    // Faster checks while keeping dropdown, pagination, and Save verification.
+    gridStableMs: 450,
+    saveInitialWaitMs: 200,
+    pollIntervalMs: 75,
     // Only exact values in the Assigned To column qualify. Empty cells are skipped.
     unassignedValues: ['unassigned', 'none'],
     technicians: {
@@ -74,7 +79,7 @@
     while (Date.now() - start < timeout) {
       const result = fn();
       if (result) return result;
-      await wait(100);
+      await wait(CONFIG.pollIntervalMs);
     }
     throw new Error(message);
   }
@@ -84,28 +89,58 @@
       el.dispatchEvent(new MouseEvent(type, {bubbles: true, cancelable: true, view: window, button: 0, buttons: type === 'mousedown' ? 1 : 0}));
     }
   }
-  function context() {
-    const headings = all('.x-panel-header-text[role="heading"]').filter(el =>
-      visible(el) && norm(el.textContent) === 'all open tickets');
-    if (headings.length !== 1) return null;
-    const scope = headings[0].closest('.x-panel');
-    if (!scope) return null;
-    // The footer and grid share a panel. Avoid unrelated Save buttons or grids.
-    const prints = all('button', scope).filter(b => visible(b) &&
-      (b.id === 'PrintTicketsBtnInjected' || norm(b.textContent) === 'print tickets'));
-    for (const print of prints) {
-      let panel = print.parentElement;
-      while (panel && scope.contains(panel)) {
-        const grids = all('.x-grid3', panel).filter(visible);
-        const saves = all('button', panel).filter(b => visible(b) && norm(b.textContent) === 'save');
-        if (grids.length === 1 && saves.length === 1) return {print, panel, scope, grid: grids[0], save: saves[0]};
-        panel = panel.parentElement;
-      }
-    }
-    return null;
+  // SchoolDude's All Open Tickets header lives inside #MainGrid. The Save,
+  // Reset, pagination, and editable grid are in its nested #Data_List panel.
+  // Do not require Print Tickets; that button isn't present in every account.
+  function ticketSurface() {
+    const matches = all('#MainGrid').filter(panel => {
+      if (!visible(panel)) return false;
+      const heading = all('.x-panel-header-text', panel).find(el =>
+        visible(el) && /^all open tickets(?:\s*\(\d+\))?$/.test(norm(el.textContent))
+      );
+      return !!heading;
+    });
+    if (matches.length !== 1) return null;
+    const scope = matches[0];
+    const heading = all('.x-panel-header-text', scope).find(el =>
+      visible(el) && /^all open tickets(?:\s*\(\d+\))?$/.test(norm(el.textContent))
+    );
+    return {scope, heading};
   }
-  let busy = false, halted = false;
+
+  // Only the uniquely identified All Open Tickets grid may be edited.
+  function context() {
+    const surface = ticketSurface();
+    if (!surface) return null;
+    const panels = all('#Data_List', surface.scope).filter(visible);
+    if (panels.length !== 1) return null;
+    const panel = panels[0];
+    const grids = all('.x-grid3', panel).filter(grid => visible(grid) &&
+      !!grid.querySelector('[class~="x-grid3-col-base.inc_incident.assigned_to"]'));
+    const saves = all('button#Save', panel).filter(visible);
+    if (grids.length !== 1 || saves.length !== 1) return null;
+    return {...surface, panel, grid: grids[0], save: saves[0]};
+  }
+
+  // The actual action bar is the Save / Reset toolbar underneath the grid.
+  function actionToolbar(surface) {
+    const dataPanel = surface?.scope?.querySelector('#Data_List');
+    if (!dataPanel || !visible(dataPanel)) return null;
+    const save = all('button#Save', dataPanel).filter(visible);
+    const reset = all('button#Reset', dataPanel).filter(visible);
+    if (save.length !== 1 || reset.length !== 1) return null;
+    const saveCell = save[0].closest('td.x-toolbar-cell');
+    const resetCell = reset[0].closest('td.x-toolbar-cell');
+    if (!saveCell || !resetCell || saveCell.parentElement !== resetCell.parentElement) return null;
+    const toolbar = resetCell.parentElement;
+    if (!toolbar.matches('.x-toolbar-left-row') || !toolbar.closest('.x-panel-fbar')) return null;
+    return {toolbar, anchor: resetCell};
+  }
+  let busy = false, halted = false, starting = false;
   let lastInteraction = 0;
+  let interactionBaseline = 0; // Ignore interactions that happened BEFORE manual Start.
+  let progressVisible = false;
+  let forceScanAvailable = false;
   let lastSweep = 0;
   document.addEventListener('pointerdown', event => {
     if (event.isTrusted && !event.target.closest('[data-dinuba-assignment]')) lastInteraction = Date.now();
@@ -113,8 +148,87 @@
   document.addEventListener('keydown', event => {
     if (event.isTrusted) lastInteraction = Date.now();
   }, true);
-  function status(text) {
-    console.info('[Dinuba assignment]', text);
+  let lastStatus = 'Ready to assign unassigned tickets';
+
+  // Read the count next to the native Open Unassigned filter. The count
+  // is only a fast-path hint; users can always force a complete scan.
+  // If the sidebar structure changes, return null and fall back to scanning.
+  function unassignedSidebarCount() {
+    const sidebar = document.getElementById('FilterItems');
+    if (!sidebar) return null;
+    // GXT moves qtip and count markup between releases. Read the uniquely
+    // labelled count from the sidebar's visible text instead of relying on
+    // a span's immediate sibling. Ambiguous or missing counts trigger a scan.
+    const text = sidebar.innerText || sidebar.textContent || '';
+    const matches = [...text.matchAll(/Open\s+Unassigned\s*([\d,]+)/gi)];
+    if (matches.length !== 1) return null;
+    const count = matches[0][1].replace(/,/g, '');
+    return /^\d+$/.test(count) ? Number(count) : null;
+  }
+
+  function ensureProgressPanel() {
+    let panel = document.getElementById('dinuba-assignment-progress');
+    if (panel) return panel;
+    panel = document.createElement('div');
+    panel.id = 'dinuba-assignment-progress';
+    panel.setAttribute('role', 'status');
+    panel.setAttribute('aria-live', 'polite');
+
+    const heading = document.createElement('strong');
+    heading.textContent = 'Ticket Assignment';
+
+    const message = document.createElement('div');
+    message.className = 'dinuba-progress-message';
+
+    const forceButton = document.createElement('button');
+    forceButton.type = 'button';
+    forceButton.className = 'dinuba-progress-force';
+    forceButton.textContent = 'Scan all pages anyway';
+    forceButton.hidden = true;
+    forceButton.addEventListener('click', event => {
+      event.stopPropagation();
+      startManualScan(true);
+    });
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'dinuba-progress-close';
+    close.textContent = '×';
+    close.title = 'Hide assignment progress';
+    close.setAttribute('aria-label', 'Hide assignment progress');
+    close.addEventListener('click', () => {
+      progressVisible = false;
+      panel.remove();
+    });
+
+    panel.append(heading, close, message, forceButton);
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  function updateButtonPresentation() {
+    all('[data-dinuba-assignment] .dinuba-assign-action').forEach(button => {
+      const label = button.querySelector('.dinuba-assign-label');
+      const desired = busy ? 'Assigning…' : starting ? 'Starting…' : 'Assign Tickets';
+      if (label && label.textContent !== desired) label.textContent = desired;
+      button.classList.toggle('is-busy', busy || starting);
+      button.setAttribute('aria-busy', String(busy || starting));
+      button.title = lastStatus;
+    });
+  }
+
+  function status(message) {
+    lastStatus = message;
+    console.info('[Dinuba assignment]', message);
+    updateButtonPresentation();
+    if (progressVisible) {
+      const panel = ensureProgressPanel();
+      const text = panel.querySelector('.dinuba-progress-message');
+      if (text) text.textContent = message;
+      panel.classList.toggle('dinuba-progress-working', busy || starting);
+      const forceButton = panel.querySelector('.dinuba-progress-force');
+      if (forceButton) forceButton.hidden = !forceScanAvailable || busy || starting;
+    }
   }
   function dirty(ctx) {
     return enabled(ctx.save) || !!ctx.grid.querySelector('.x-grid3-dirty-cell');
@@ -142,7 +256,7 @@
         stableSince = Date.now();
         return false;
       }
-      return Date.now() - stableSince >= 1000;
+      return Date.now() - stableSince >= CONFIG.gridStableMs;
     }, 'Ticket cells did not finish loading.', 20000);
   }
   function currentContext(ctx) {
@@ -169,9 +283,11 @@
     return {start: Number(match[1]), end: Number(match[2]), total: Number(match[3]), first, next};
   }
   const canPage = button => enabled(button) && !button.querySelector('.x-item-disabled');
-  function shouldStop(ctx) {
+  // While staging a page, our own edits intentionally make Save enabled.
+  function shouldStop(ctx, allowDirty = false) {
     return document.hidden || !currentContext(ctx) ||
-      Date.now() - lastInteraction < 4000 || dirty(ctx) || activeEditor();
+      lastInteraction > interactionBaseline ||
+      (!allowDirty && dirty(ctx)) || activeEditor();
   }
   async function changePage(ctx, direction) {
     if (shouldStop(ctx)) return false;
@@ -194,7 +310,7 @@
       if (!moved || newIds === oldIds) { stableKey = ''; return false; }
       const key = `${after.start}:${after.end}:${pageFingerprint(ctx)}`;
       if (key !== stableKey) { stableKey = key; stableSince = Date.now(); return false; }
-      return Date.now() - stableSince >= 1000;
+      return Date.now() - stableSince >= CONFIG.gridStableMs;
     }, `The ${direction} ticket page did not finish loading.`, 20000);
     return true;
   }
@@ -209,14 +325,18 @@
       .filter(el => visible(el) && norm(el.textContent) === norm(email));
     return matches.length === 1 ? matches[0] : null;
   }
-  async function assign(ctx, id, email) {
+  // Change Assigned To locally; DO NOT click Save here.
+  async function stageAssignment(ctx, id, email) {
     requireContext(ctx);
-    let row = findRow(ctx, id);
+    const row = findRow(ctx, id);
     if (!row || !isUnassigned(row)) return false;
     const target = cell(row, 'assigned_to');
+    if (!target) throw new Error(`Ticket ${id}: Assigned To cell disappeared.`);
     target.scrollIntoView({block: 'nearest', inline: 'nearest'});
     click(target);
-    target.dispatchEvent(new MouseEvent('dblclick', {bubbles: true, cancelable: true, view: window, detail: 2}));
+    target.dispatchEvent(new MouseEvent('dblclick', {
+      bubbles: true, cancelable: true, view: window, detail: 2
+    }));
     const input = await until(() => {
       const focused = document.activeElement;
       return focused?.tagName === 'INPUT' && visible(focused) &&
@@ -229,46 +349,105 @@
     click(trigger);
     const option = await until(() => technicianOption(input, wrap, email),
       `Ticket ${id}: technician ${email} was not found in the dropdown.`);
-    // Check again immediately before changing the value.
-    row = findRow(ctx, id);
-    if (!row || !isUnassigned(row)) throw new Error(`Ticket ${id}: row changed while opening the editor.`);
+    const current = findRow(ctx, id);
+    if (!current || !isUnassigned(current)) {
+      throw new Error(`Ticket ${id}: row changed while opening the editor.`);
+    }
     requireContext(ctx);
     click(option);
-    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
-    input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
-    // Clicking the column heading area commits editors that commit on blur.
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
+    }));
+    input.dispatchEvent(new KeyboardEvent('keyup', {
+      key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
+    }));
     const header = ctx.grid.querySelector('.x-grid3-header');
     if (header) click(header);
     await until(() => {
-      const current = findRow(ctx, id);
-      return current && norm(value(current, 'assigned_to')) === norm(email);
-    }, `Ticket ${id}: selected technician was not committed to Assigned To.`);
-    await until(() => enabled(ctx.save), `Ticket ${id}: Save did not become available.`);
-    requireContext(ctx);
-    click(ctx.save);
-    // Save disabling plus the expected row value is a UI acknowledgement only.
-    await wait(500);
-    await until(() => {
-      const current = findRow(ctx, id);
-      return visible(ctx.save) && !enabled(ctx.save) && current &&
-        norm(value(current, 'assigned_to')) === norm(email) &&
-        !current.querySelector('.x-grid3-dirty-cell') &&
-        !all('.x-mask-loading, .ext-el-mask, .x-message-box').some(visible);
-    }, `Ticket ${id}: Save could not be confirmed. Check the page before continuing.`, 15000);
+      const updated = findRow(ctx, id);
+      return updated && norm(value(updated, 'assigned_to')) === norm(email);
+    }, `Ticket ${id}: Assigned To was not committed in the grid.`);
+    await until(() => enabled(ctx.save), `Ticket ${id}: Save did not become enabled.`);
+    await until(() => !activeEditor(), `Ticket ${id}: cell editor did not close.`);
     return true;
   }
-  async function run(manual = false) {
+
+  // Save every staged change with ONE Save click for this page, then verify.
+  async function savePageBatch(ctx, expected) {
+    if (!expected.size) return 0;
+    requireContext(ctx);
+    if (document.hidden || lastInteraction > interactionBaseline || activeEditor()) {
+      throw new Error('Batch paused before Save. Review unsaved assignments on this page.');
+    }
+    for (const [id, email] of expected) {
+      const row = findRow(ctx, id);
+      if (!row || norm(value(row, 'assigned_to')) !== norm(email)) {
+        throw new Error(`Ticket ${id}: value changed before Save. Review unsaved assignments.`);
+      }
+    }
+    if (!enabled(ctx.save)) {
+      throw new Error('Save is disabled before batch submission. Check unsaved assignments.');
+    }
+    status(`Saving ${expected.size} assignment(s) on this page…`);
+    click(ctx.save);
+    await wait(CONFIG.saveInitialWaitMs);
+    await until(() => {
+      requireContext(ctx);
+      if (!visible(ctx.save) || enabled(ctx.save) || loading(ctx)) return false;
+      if (all('.x-message-box').some(visible)) return false;
+      for (const [id, email] of expected) {
+        const row = findRow(ctx, id);
+        if (!row || norm(value(row, 'assigned_to')) !== norm(email) ||
+            row.querySelector('.x-grid3-dirty-cell')) return false;
+      }
+      return !ctx.grid.querySelector('.x-grid3-dirty-cell');
+    }, 'The batch Save was not acknowledged. Review the page before retrying.', 20000);
+    // This is a UI acknowledgement, not an independent server-side audit.
+    return expected.size;
+  }
+
+  async function run(manual = false, forceFullScan = false) {
     if (busy || halted || document.hidden) return;
+    // Manual runs should not be blocked by a click that happened just before Start.
+    interactionBaseline = lastInteraction;
     const ctx = context();
-    if (!ctx) return;
-    if (dirty(ctx)) { status('Waiting: save or reset your existing changes first.'); return; }
-    if (activeEditor()) { status('Waiting: close the open cell editor/dropdown, then click Assign Tickets.'); return; }
-    if (Date.now() - lastInteraction < 4000) { status('Waiting for 4 seconds without page interaction…'); return; }
-    if (loading(ctx)) { status('Waiting for the ticket page to load…'); return; }
-    // A ticket newly made Unassigned on the current page must not wait for a sweep cooldown.
+    if (!ctx) {
+      if (manual) {
+        status('All Open Tickets is still loading, or the Save/grid controls are unavailable.');
+        alert('Open All Open Tickets and wait for its grid and Save/Reset toolbar to appear, then try again.');
+      }
+      return;
+    }
+    if (dirty(ctx)) { status('Save or reset existing changes before assigning tickets.'); return; }
+    if (activeEditor()) { status('Close the open cell editor before assigning tickets.'); return; }
+    if (!manual && Date.now() - lastInteraction < 4000) return;
+    if (loading(ctx)) { status('Ticket page is still loading. Try again after it finishes.'); return; }
+
+    // If the sidebar says 0 and the current page contains no unassigned
+    // tickets, avoid a slow, pointless sweep through every page. This
+    // shortcut never edits any ticket and can be bypassed with Scan anyway.
+    if (manual && !forceFullScan &&
+        unassignedSidebarCount() === 0 && candidates(ctx).length === 0) {
+      forceScanAvailable = true;
+      status('SchoolDude shows 0 Open Unassigned tickets. No changes made. Use "Scan all pages anyway" if this count is outdated.');
+      return;
+    }
+
+    // Ask before the first editable action. Dismissing this prompt leaves
+    // the grid untouched, which also makes button-response testing safe.
+    if (manual && !CONFIG.previewOnly &&
+        !window.confirm('Assign and save unassigned SchoolDude tickets now? This will change live ticket assignments.')) {
+      status('Assignment cancelled. No changes made.');
+      return;
+    }
+
     if (!manual && !candidates(ctx).length && Date.now() - lastSweep < CONFIG.sweepIntervalMs) return;
+    forceScanAvailable = false;
     busy = true;
-    let saved = 0, skipped = 0, pages = 0, inspected = 0, eligible = 0, complete = false;
+    let saved = 0, proposed = 0, skipped = 0, pages = 0, inspected = 0, eligible = 0, complete = false;
+    status(CONFIG.previewOnly ? 'Preview only: scanning ticket pages; no changes will be saved…' : 'Scanning all ticket pages…');
+    // Let the browser paint the status before heavy grid/pagination operations.
+    await wait(0);
     try {
       if (!await changePage(ctx, 'first')) return;
       const visited = new Set();
@@ -282,88 +461,279 @@
         inspected += rows(ctx.grid).length;
         const unassigned = candidates(ctx);
         eligible += unassigned.length;
-        const ids = unassigned.map(r => value(r, 'id')).filter(Boolean);
-        status(`Page ${page.start}–${page.end}: ${unassigned.length} unassigned ticket(s) found.`);
+        // No filter is needed: visit every page and edit ONLY unassigned tickets.
+        const ids = unassigned.map(row => value(row, 'id')).filter(Boolean);
+        const expected = new Map();
+        status(`Page ${page.start}–${page.end}: staging ${ids.length} unassigned ticket(s)…`);
         for (const id of ids) {
-          if (shouldStop(ctx)) break;
+          if (shouldStop(ctx, true)) {
+            if (expected.size) {
+              throw new Error('Interrupted with unsaved assignments. Review and Save this page manually.');
+            }
+            break;
+          }
           const row = findRow(ctx, id);
           if (!row || !isUnassigned(row)) continue;
           const owner = route(value(row, 'rte_location'), value(row, 'work_type'), value(row, 'description'));
           if (!owner) { skipped++; continue; }
-          status(`Assigning #${id} to ${owner}…`);
-          if (await assign(ctx, id, CONFIG.technicians[owner])) saved++;
-          await wait(500);
+          const email = CONFIG.technicians[owner];
+          if (!email) throw new Error(`No configured email for ${owner}.`);
+          if (CONFIG.previewOnly) {
+            proposed++;
+            continue;
+          }
+          status(`Page ${page.start}–${page.end}: assigning #${id} to ${owner} (${expected.size + 1}/${ids.length})…`);
+          if (await stageAssignment(ctx, id, email)) expected.set(id, email);
         }
+        if (expected.size) saved += await savePageBatch(ctx, expected);
         if (shouldStop(ctx)) break;
         const after = pageState(ctx);
         if (after.end >= after.total) { complete = true; lastSweep = Date.now(); break; }
         if (!await changePage(ctx, 'next')) break;
       }
-      status(`${inspected} rows checked; ${eligible} unassigned; ${saved} saved; ${skipped} without a routing rule; ${pages} page(s). ${complete ? 'Reached the last page.' : 'Scan interrupted.'}`);
+      status(CONFIG.previewOnly
+        ? `Preview only: ${inspected} rows checked; ${eligible} unassigned; ${proposed} proposed; ${skipped} without a routing rule; 0 saved. ${complete ? 'Reached the last page.' : 'Scan interrupted.'}`
+        : `${inspected} rows checked; ${eligible} unassigned; ${saved} saved; ${skipped} without a routing rule; ${pages} page(s). ${complete ? 'Reached the last page.' : 'Scan interrupted.'}`);
     } catch (error) {
       halted = true;
-      status(`Stopped: ${error.message} Reload after reviewing the ticket.`);
+      status(`Stopped: ${error.message} Review the grid before reloading.`);
       console.error('[Dinuba assignment]', error);
+      if (manual) alert(`Assignment stopped: ${error.message}`);
     } finally {
       busy = false;
+      // Keep button enabled for inspecting results and future manual runs.
+      updateButtonPresentation();
     }
   }
-  function schoolDudeButton(text, width) {
-    // Use the same nine-cell button frame and CSS classes as Print Tickets.
-    const frame = document.createElement('table');
-    frame.cellSpacing = '0';
-    frame.className = 'x-btn x-component x-btn-noicon x-unselectable';
-    frame.style.marginRight = '5px';
-    frame.setAttribute('role', 'presentation');
-    frame.innerHTML = `<tbody class="x-btn-small x-btn-icon-small-left">
-      <tr><td class="x-btn-tl"><i>&nbsp;</i></td><td class="x-btn-tc"></td><td class="x-btn-tr"><i>&nbsp;</i></td></tr>
-      <tr><td class="x-btn-ml"><i>&nbsp;</i></td><td class="x-btn-mc"><em unselectable="on"><button class="x-btn-text" type="button"></button></em></td><td class="x-btn-mr"><i>&nbsp;</i></td></tr>
-      <tr><td class="x-btn-bl"><i>&nbsp;</i></td><td class="x-btn-bc"></td><td class="x-btn-br"><i>&nbsp;</i></td></tr>
-    </tbody>`;
-    const button = frame.querySelector('button');
-    button.textContent = text;
-    button.style.width = `${width}px`;
-    button.style.position = 'relative';
-    frame.addEventListener('mouseenter', () => frame.classList.add('x-btn-over'));
-    frame.addEventListener('mouseleave', () => frame.classList.remove('x-btn-over', 'x-btn-click'));
-    frame.addEventListener('mousedown', () => frame.classList.add('x-btn-click'));
-    frame.addEventListener('mouseup', () => frame.classList.remove('x-btn-click'));
-    button.addEventListener('focus', () => frame.classList.add('x-btn-focus'));
-    button.addEventListener('blur', () => frame.classList.remove('x-btn-focus', 'x-btn-click'));
-    return {frame, button};
+  function injectButtonStyles() {
+    if (document.getElementById('dinuba-assign-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'dinuba-assign-styles';
+    style.textContent = `
+      [data-dinuba-assignment] .dinuba-assign-action {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 7px !important;
+        box-sizing: border-box !important;
+        min-width: 142px !important;
+        height: 29px !important;
+        padding: 0 12px !important;
+        border: 1px solid #1d4ed8 !important;
+        border-radius: 6px !important;
+        background: #2563eb !important;
+        color: #fff !important;
+        font: 600 12px/1 Arial, sans-serif !important;
+        cursor: pointer !important;
+        box-shadow: 0 1px 3px rgba(37,99,235,.24) !important;
+        white-space: nowrap !important;
+      }
+      [data-dinuba-assignment] .dinuba-assign-action:hover {
+        background: #1d4ed8 !important;
+      }
+      [data-dinuba-assignment] .dinuba-assign-action:focus-visible {
+        outline: 3px solid #93c5fd !important;
+        outline-offset: 2px !important;
+      }
+      [data-dinuba-assignment] .dinuba-assign-action.is-busy {
+        background: #334155 !important;
+        border-color: #334155 !important;
+        cursor: progress !important;
+      }
+      [data-dinuba-assignment] .dinuba-assign-icon {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      [data-dinuba-assignment] .dinuba-assign-action.is-busy .dinuba-assign-icon {
+        animation: dinuba-assign-spin .85s linear infinite;
+      }
+      @keyframes dinuba-assign-spin { to { transform: rotate(360deg); } }
+      #dinuba-assignment-progress {
+        position: fixed !important;
+        left: 18px !important;
+        bottom: 18px !important;
+        z-index: 2147483001 !important;
+        max-width: min(360px, calc(100vw - 36px)) !important;
+        box-sizing: border-box !important;
+        padding: 14px 42px 14px 16px !important;
+        border: 1px solid #bfdbfe !important;
+        border-left: 4px solid #2563eb !important;
+        border-radius: 10px !important;
+        background: #fff !important;
+        color: #172033 !important;
+        font: 13px/1.4 Arial, sans-serif !important;
+        box-shadow: 0 8px 24px rgba(15,23,42,.16) !important;
+        overflow-wrap: anywhere !important;
+      }
+      #dinuba-assignment-progress strong {
+        display: block !important;
+        margin-bottom: 4px !important;
+        font-weight: 700 !important;
+      }
+      #dinuba-assignment-progress .dinuba-progress-message {
+        color: #475569 !important;
+      }
+      #dinuba-assignment-progress .dinuba-progress-close {
+        position: absolute !important;
+        top: 5px !important;
+        right: 7px !important;
+        border: 0 !important;
+        background: transparent !important;
+        color: #64748b !important;
+        font: 22px Arial, sans-serif !important;
+        cursor: pointer !important;
+      }
+      #dinuba-assignment-progress .dinuba-progress-force {
+        display: inline-block !important;
+        margin-top: 9px !important;
+        padding: 6px 9px !important;
+        background: #eff6ff !important;
+        border: 1px solid #93c5fd !important;
+        border-radius: 6px !important;
+        color: #1d4ed8 !important;
+        font: 600 12px Arial, sans-serif !important;
+        cursor: pointer !important;
+      }
+      #dinuba-assignment-progress .dinuba-progress-force[hidden] {
+        display: none !important;
+      }
+      [data-dinuba-assignment="toolbar"] { padding-left: 6px !important; }
+      [data-dinuba-assignment="floating"] {
+        position: fixed !important;
+        right: 18px !important;
+        bottom: 18px !important;
+        z-index: 2147483000 !important;
+        padding: 8px !important;
+        background: #fff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,.16) !important;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
   }
+  // SchoolDude hides overflowed toolbar items in narrow windows.
+  // If our button cannot fit, use the clearly visible floating version.
+  function hasToolbarSpace(target) {
+    const host = target.toolbar.closest('.x-panel-fbar');
+    if (!host) return false;
+    const available = host.getBoundingClientRect().width;
+    const occupied = [...target.toolbar.children].reduce((sum, cell) => {
+      if (!cell.matches('td.x-toolbar-cell') ||
+          cell.hasAttribute('data-dinuba-assignment') || !visible(cell)) return sum;
+      return sum + cell.getBoundingClientRect().width;
+    }, 0);
+    return available >= occupied + 155;
+  }
+  // Update the interface synchronously on the user's FIRST click, then
+  // begin the actual scan. No idle timer or background scan is required.
+  function startManualScan(forceFullScan = false) {
+    progressVisible = true;
+    ensureProgressPanel();
+    if (busy || starting) {
+      status(lastStatus);
+      return;
+    }
+    if (halted) {
+      status('Previous run stopped after an error. Review the grid and reload.');
+      return;
+    }
+    forceScanAvailable = false;
+    starting = true;
+    const sidebarCount = unassignedSidebarCount();
+    status(sidebarCount === null
+      ? 'Checking All Open Tickets…'
+      : `Checking ${sidebarCount} Open Unassigned ticket(s)…`);
+
+    // Begin the real work on the next browser task. This is not a wait for
+    // user inactivity; it gives the immediate status a chance to render.
+    setTimeout(() => {
+      starting = false;
+      run(true, forceFullScan).catch(error => {
+        console.error('[Dinuba assignment] Unexpected start failure', error);
+        status(`Assignment could not start: ${error.message}`);
+      });
+    }, 0);
+  }
+
+  function createAssignButton() {
+    const button = document.createElement('button');
+    button.className = 'dinuba-assign-action';
+    button.type = 'button';
+    button.innerHTML = `<span class="dinuba-assign-icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 7h-9M14 3l-4 4 4 4M4 17h9M10 13l4 4-4 4"/>
+      </svg></span><span class="dinuba-assign-label">Assign Tickets</span>`;
+    button.title = lastStatus;
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      startManualScan(false);
+    });
+    return button;
+  }
+
+  // Mount next to Reset in the real SchoolDude toolbar, without needing
+  // Print Tickets. If it is temporarily absent, keep a fallback control.
   function install() {
-    const ctx = context();
-    all('[data-dinuba-assignment]').forEach(el => {
-      if (!ctx || !ctx.panel.contains(el)) el.remove();
-    });
-    if (!ctx || ctx.panel.querySelector('[data-dinuba-assignment]')) return;
-    const anchor = ctx.print.closest('td.x-toolbar-cell');
-    if (!anchor) return;
-    const holder = document.createElement('td');
-    holder.className = 'x-toolbar-cell';
-    holder.setAttribute('data-dinuba-assignment', '');
-    const assignControl = schoolDudeButton('Assign Tickets', 110);
-    const button = assignControl.button;
-    button.title = 'Assign unassigned tickets across all pages';
-    button.addEventListener('click', () => {
-      if (halted) { status('Stopped after an error. Review the ticket and reload.'); return; }
-      run(true);
-    });
-    holder.append(assignControl.frame);
-    anchor.after(holder);
+    const surface = ticketSurface();
+    const existing = all('[data-dinuba-assignment]');
+    if (!surface) {
+      existing.forEach(el => el.remove());
+      return;
+    }
+    injectButtonStyles();
+    const target = actionToolbar(surface);
+    const toolbarReady = !!target && hasToolbarSpace(target);
+    const valid = existing.filter(el => toolbarReady
+      ? el.dataset.dinubaAssignment === 'toolbar' && el.parentElement === target.toolbar
+      : el.dataset.dinubaAssignment === 'floating' && el.parentElement === document.body);
+    const keep = valid[0] || null;
+    existing.forEach(el => { if (el !== keep) el.remove(); });
+    if (keep) {
+      if (toolbarReady && keep.previousElementSibling !== target.anchor) {
+        target.anchor.after(keep);
+      }
+      updateButtonPresentation();
+      return;
+    }
+
+    const holder = document.createElement(toolbarReady ? 'td' : 'div');
+    holder.dataset.dinubaAssignment = toolbarReady ? 'toolbar' : 'floating';
+    if (toolbarReady) holder.className = 'x-toolbar-cell';
+    holder.appendChild(createAssignButton());
+    if (toolbarReady) target.anchor.after(holder);
+    else document.body.appendChild(holder);
+    updateButtonPresentation();
   }
   function tick() {
     install();
     if (CONFIG.autoRun) run();
   }
   let installQueued = false;
-  new MutationObserver(() => {
-    if (installQueued) return;
+  const observer = new MutationObserver(() => {
+    // Progress text updates and grid changes during a run do not need a
+    // toolbar rescan. The normal interval remounts after a view change.
+    if (installQueued || busy || starting) return;
     installQueued = true;
-    setTimeout(() => { installQueued = false; install(); }, 100);
-  }).observe(document.body, {childList: true, subtree: true, characterData: true,
-    attributes: true, attributeFilter: ['class', 'style', 'aria-hidden']});
-  setTimeout(tick, 3000);
-  setInterval(tick, CONFIG.scanIntervalMs);
+    setTimeout(() => { installQueued = false; install(); }, 120);
+  });
+  function start() {
+    if (!document.body) return;
+    observer.observe(document.body, {childList: true, subtree: true});
+    tick();
+    setInterval(tick, CONFIG.scanIntervalMs);
+    window.addEventListener('resize', () => {
+      if (!installQueued) {
+        installQueued = true;
+        setTimeout(() => { installQueued = false; install(); }, 120);
+      }
+    });
+  }
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start, {once: true});
 })();

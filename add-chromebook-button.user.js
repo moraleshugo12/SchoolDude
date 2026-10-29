@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Chromebooks Button with Submission Process
 // @namespace    http://tampermonkey.net/
-// @version      1.8.3
+// @version      1.8.5
 // @description  Professional Chromebook intake workflow and automated SchoolDude ticket submission.
 // @author       You
 // @match        *://*.schooldude.com/*
@@ -13,7 +13,6 @@
   'use strict';
 
   let addBtnScheduled = false;
-  let addBtnInserted = false;
 
   let submissionInProgress = false;
 
@@ -116,122 +115,57 @@
     return table;
   }
 
+  // SchoolDude (ExtJS) may replace its footer after initial page load.
+  // Never permanently stop observing just because the button was inserted once.
   function addButtonToSpecificFooter() {
-    if (addBtnInserted) return;
-
-    const footers =
-      document.querySelectorAll(
-        '.x-panel-footer'
-      );
+    const footers = document.querySelectorAll('.x-panel-footer');
 
     for (const footer of footers) {
-      const personalizationsButton =
-        footer.querySelector(
-          'button#Personalizations'
-        );
+      if (!footer.querySelector('button#Personalizations')) continue;
 
-      if (!personalizationsButton) {
-        continue;
-      }
+      const toolbar = footer.querySelector('.x-toolbar-left-row');
+      if (!toolbar) continue;
 
-      if (
-        !footer.querySelector(
-          '#AddChromebooksButton'
-        )
-      ) {
-        const toolbar =
-          footer.querySelector(
-            '.x-toolbar-left-row'
-          );
+      // No duplicate insertion when this footer already has our button.
+      if (footer.querySelector('#AddChromebooksButton')) continue;
 
-        if (!toolbar) continue;
-
-        const addChromebooksButton =
-          createAddChromebooksButton();
-
-        const addChromebooksCell =
-          document.createElement('td');
-
-        addChromebooksCell.className =
-          'x-toolbar-cell';
-
-        addChromebooksCell.appendChild(
-          addChromebooksButton
-        );
-
-        toolbar.appendChild(
-          addChromebooksCell
-        );
-
-        console.log(
-          '"Add Chromebooks" button added.'
-        );
-
-        addBtnInserted = true;
-
-        if (observer) {
-          observer.disconnect();
-        }
-
-        break;
-      }
-
-      addBtnInserted = true;
-
-      if (observer) {
-        observer.disconnect();
-      }
-
-      break;
+      const cell = document.createElement('td');
+      cell.className = 'x-toolbar-cell';
+      cell.appendChild(createAddChromebooksButton());
+      toolbar.appendChild(cell);
+      console.log('[Chromebooks] Toolbar button inserted/restored.');
     }
   }
 
-  const observer =
-    new MutationObserver(() => {
-      if (addBtnInserted) {
-        observer.disconnect();
-        return;
-      }
-
-      if (addBtnScheduled) {
-        return;
-      }
-
-      addBtnScheduled = true;
-
-      setTimeout(() => {
-        addBtnScheduled = false;
-
-        addButtonToSpecificFooter();
-      }, 100);
-    });
-
-  window.addEventListener(
-    'load',
-    () => {
+  function scheduleButtonCheck() {
+    if (addBtnScheduled) return;
+    addBtnScheduled = true;
+    setTimeout(() => {
+      addBtnScheduled = false;
       addButtonToSpecificFooter();
+    }, 100);
+  }
 
-      if (!addBtnInserted) {
-        observer.observe(
-          document.body,
-          {
-            childList: true,
-            subtree: true
-          }
-        );
-      }
-    }
-  );
+  const observer = new MutationObserver(scheduleButtonCheck);
+
+  function initializeButtonWatcher() {
+    if (!document.body) return;
+    addButtonToSpecificFooter();
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
   if (document.body) {
-    observer.observe(
-      document.body,
-      {
-        childList: true,
-        subtree: true
-      }
-    );
+    initializeButtonWatcher();
+  } else {
+    document.addEventListener('DOMContentLoaded', initializeButtonWatcher, { once: true });
   }
+
+  window.addEventListener('load', scheduleButtonCheck);
+  window.addEventListener('pageshow', scheduleButtonCheck);
+
+  // Safety net for ExtJS view changes that reuse existing nodes.
+  // This is lightweight: no DOM writes unless the button is missing.
+  setInterval(scheduleButtonCheck, 3000);
 
   function injectChromebookSubmissionLogic() {
     console.log(
